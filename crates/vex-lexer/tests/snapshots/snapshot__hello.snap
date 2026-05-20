@@ -1,0 +1,16 @@
+---
+source: crates/vex-lexer/tests/snapshot.rs
+expression: snapshot_of(src)
+---
+   0..2    Fn
+   3..7    Ident("main")
+   7..8    LParen
+   8..9    RParen
+  10..12   Arrow
+  13..17   TVoid
+  18..19   LBrace
+  24..31   Ident("println")
+  31..32   LParen
+  32..45   Str("Hello, Vex!")
+  45..46   RParen
+  47..48   RBrace

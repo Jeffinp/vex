@@ -86,15 +86,28 @@ cargo test --workspace
 
 ## Fase 1 — Lexer (Dia 2-3)
 
-**Status:** Iniciada (esqueleto pronto em `crates/vex-lexer/`).
+**Status:** ✅ Concluída.
 
-- [x] Definir `Token` enum com `logos`
-- [x] Testes para keywords, números, strings, operadores, comentários
-- [ ] Suporte a string escapes (`\n`, `\t`, `\"`, `\\`)
-- [ ] Suporte a char literals (`'a'`)
-- [ ] Spans preservados em todos os tokens
+- [x] `Token` enum com `logos` 0.14
+- [x] Keywords (const, enum, trait, pub, use, mod, import, match, break,
+      continue, self, Self, as, comptime, etc.)
+- [x] Tipos primitivos (int, float, bool, str, char, void)
+- [x] Numéricos com `_` separator (`1_000`, `1_000.5`)
+- [x] String literals com escapes (`\n`, `\t`, `\r`, `\0`, `\\`, `\"`, `\'`)
+- [x] Char literals com escapes (`'a'`, `'\n'`, `'á'` Unicode)
+- [x] Block comments aninhados (`/* a /* b */ c */`)
+- [x] Operadores compostos (longest-match: `==`, `!=`, `<=`, `>=`,
+      `+=`, `-=`, `*=`, `/=`, `&&`, `||`, `->`, `=>`, `::`, `..`, `..=`)
+- [x] Pontuação completa (`@`, `?`, etc.)
+- [x] `LexError` estruturado com span (UnterminatedString,
+      UnterminatedChar, InvalidCharLiteral, InvalidEscape,
+      UnterminatedBlockComment, InvalidNumber, UnknownChar)
+- [x] Spans preservados em todos os tokens
+- [x] 22 testes unitários + 3 snapshot tests (`insta`) sobre
+      `examples/{hello,fib,ponto}.vex`
+- [x] `cargo clippy -D warnings` verde
 
-**Entregável:** `cargo test -p vex-lexer` verde.
+**Entregável:** `cargo test -p vex-lexer` verde (25/25).
 
 ---
 
