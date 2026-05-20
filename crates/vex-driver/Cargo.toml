@@ -1,0 +1,18 @@
+[package]
+name = "vex-driver"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Compiler pipeline driver for Vex"
+
+[dependencies]
+vex-lexer.workspace = true
+vex-parser.workspace = true
+vex-ast.workspace = true
+vex-hir.workspace = true
+vex-typeck.workspace = true
+vex-mir.workspace = true
+vex-codegen.workspace = true
+vex-diagnostics.workspace = true
+thiserror.workspace = true

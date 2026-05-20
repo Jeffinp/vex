@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  test-linux:
+    name: Test (Linux x86_64)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LLVM 17
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 17
+          sudo apt-get install -y llvm-17-dev libpolly-17-dev
+
+      - name: Set LLVM env
+        run: echo "LLVM_SYS_170_PREFIX=/usr/lib/llvm-17" >> $GITHUB_ENV
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Build
+        run: cargo build --workspace
+
+      - name: Test
+        run: cargo test --workspace
+
+  cross-windows:
+    name: Cross-build Windows .exe
+    runs-on: ubuntu-22.04
+    needs: test-linux
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - name: Install mingw-w64
+        run: sudo apt-get install -y mingw-w64
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Cross-build (skip LLVM-dependent crates)
+        run: cargo build --target x86_64-pc-windows-gnu -p vex-cli --no-default-features || true

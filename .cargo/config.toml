@@ -1,0 +1,15 @@
+# Configuração padrão do Cargo para o repositório Vex.
+#
+# Define o prefixo do LLVM 17 globalmente para que `cargo build` /
+# `cargo test` funcionem sem precisar exportar `LLVM_SYS_170_PREFIX`
+# manualmente em cada sessão de shell.
+#
+# Caso seu LLVM esteja em outro caminho (ex.: instalação via brew no
+# macOS), sobrescreva criando `.cargo/config.local.toml` (gitignored)
+# ou exportando a variável no shell.
+
+[env]
+LLVM_SYS_170_PREFIX = { value = "/usr/lib/llvm-17", force = false }
+
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"

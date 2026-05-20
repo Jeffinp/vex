@@ -4,7 +4,7 @@
 //! typeck, codegen) reportem da mesma forma — com spans, severities e
 //! hints renderizados graficamente no terminal.
 
-use miette::{Diagnostic, SourceSpan};
+use miette::{Diagnostic, NamedSource, SourceSpan};
 
 /// Erro genérico de compilação. Cada crate define seus próprios tipos
 /// implementando `Diagnostic` e convertendo para este na borda.
@@ -12,8 +12,10 @@ use miette::{Diagnostic, SourceSpan};
 #[error("{message}")]
 pub struct VexError {
     pub message: String,
+    // Renomeado de `source` para evitar conflito com thiserror,
+    // que interpreta qualquer campo `source` como `Error::source()`.
     #[source_code]
-    pub source: String,
+    pub src: NamedSource<String>,
     #[label("{label}")]
     pub span: SourceSpan,
     pub label: String,
@@ -23,4 +25,8 @@ pub struct VexError {
 
 pub fn span_from_range(r: std::ops::Range<usize>) -> SourceSpan {
     (r.start, r.end - r.start).into()
+}
+
+pub fn named_source(path: &str, content: String) -> NamedSource<String> {
+    NamedSource::new(path, content)
 }

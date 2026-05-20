@@ -1,0 +1,11 @@
+[package]
+name = "vex-fmt"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Opinionated formatter for Vex"
+
+[dependencies]
+vex-ast.workspace = true
+vex-parser.workspace = true

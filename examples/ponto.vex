@@ -1,0 +1,19 @@
+struct Ponto {
+    x: float,
+    y: float,
+}
+
+impl Ponto {
+    fn distancia(self, outro: Ponto) -> float {
+        let dx: float = self.x - outro.x
+        let dy: float = self.y - outro.y
+        return sqrt(dx * dx + dy * dy)
+    }
+}
+
+fn main() -> void {
+    let a: Ponto = Ponto { x: 0.0, y: 0.0 }
+    let b: Ponto = Ponto { x: 3.0, y: 4.0 }
+    let d: float = a.distancia(b)
+    println(d)
+}

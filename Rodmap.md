@@ -1,596 +1,239 @@
-# Vex Lang — Roadmap de Implementação
-> Linguagem de programação: rápida como C++, segura como Rust, legível como Python.  
-> Stack: **Rust** + **LLVM (inkwell)** + **WASM target futuro**
+# Vex Lang — Roadmap v2
+
+> Linguagem de programação: rápida como C++, segura como Rust, legível como Python.
+> Stack: **Rust** + **LLVM 17 (inkwell 0.9)** + **llvm-mingw** (cross-Windows) + **WASM** (futuro).
+>
+> Dev em **WSL2 Ubuntu**. Target binário Linux **e** Windows (`.exe`) desde o início.
+
+Fundamentação: ver `docs/design/0001-architecture.md` (ADR baseado em
+pesquisa do estado da arte 2026 — Cranelift, QBE, Vale, Hylo, Austral,
+Mojo, Zig, Gleam).
 
 ---
 
-## Contexto e filosofia
+## Pilares
 
-Vex tem três pilares:
-- **Performance** — compila para binário nativo via LLVM, zero GC
-- **Safety** — ownership simplificado (menos verboso que Rust, mais seguro que C++)
-- **Ergonomia** — sintaxe limpa, tipagem inferida, sem cerimônia
+1. **Performance** — LLVM, zero GC, ASAP destruction.
+2. **Safety** — ownership híbrido (generational refs + linear types opcionais).
+3. **Ergonomia** — sintaxe enxuta, inferência local, mensagens de erro extraordinárias.
+4. **No hidden control flow** — sem alocações invisíveis, sem exceptions implícitas.
+5. **Cross-platform** — Linux e Windows desde v0.1, WASM em v0.5+.
 
 ---
 
-## Fase 0 — Setup do projeto (Dia 1)
-
-### Objetivo
-Repositório funcional com estrutura base pronta para desenvolver.
-
-### Tarefas
+## Estrutura do repositório
 
 ```
 vex/
-├── Cargo.toml          # workspace
+├── Cargo.toml              # workspace
+├── rust-toolchain.toml     # 1.85+
+├── .github/workflows/      # CI Linux + cross-Windows
 ├── crates/
-│   ├── vex-lexer/      # tokenização
-│   ├── vex-parser/     # AST + parsing
-│   ├── vex-typeck/     # type checker
-│   ├── vex-codegen/    # LLVM IR
-│   └── vex-cli/        # binário `vex`
-├── std/                # stdlib futura
-├── examples/           # programas .vex de teste
-└── tests/              # testes de integração
+│   ├── vex-lexer/          # logos 0.14
+│   ├── vex-ast/            # nós AST + spans
+│   ├── vex-parser/         # recursive descent + Pratt
+│   ├── vex-hir/            # HIR (pós resolução de nomes)
+│   ├── vex-typeck/         # inferência + ownership
+│   ├── vex-mir/            # MIR (lowering ownership → CFG)
+│   ├── vex-codegen/        # inkwell → LLVM IR
+│   ├── vex-driver/         # orquestra pipeline
+│   ├── vex-diagnostics/    # miette wrappers
+│   ├── vex-cli/            # binário `vex`
+│   ├── vex-fmt/            # formatter opinativo
+│   └── vex-lsp/            # language server (stub Fase 8)
+├── runtime/                # runtime nativo (gen refs, intrínsecos)
+├── std/                    # stdlib em .vex
+├── examples/               # programas .vex de teste
+├── tests/                  # ui / integration / corpus
+├── docs/
+│   ├── spec.md             # spec da linguagem
+│   ├── grammar.ebnf        # gramática formal
+│   └── design/             # ADRs
+├── tools/                  # setup scripts (llvm-mingw, etc.)
+└── benchmarks/             # hyperfine scripts
 ```
-
-**Dependências no `Cargo.toml` raiz:**
-```toml
-[workspace]
-members = ["crates/*"]
-
-[workspace.dependencies]
-inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm17-0"] }
-logos = "0.14"          # lexer por macro
-ariadne = "0.4"         # erros com highlight bonito
-clap = { version = "4", features = ["derive"] }
-miette = "7"            # diagnósticos
-```
-
-**Entregável:** `cargo build` passa sem erros, estrutura de crates criada.
 
 ---
 
-## Fase 1 — Lexer (Dias 2–3)
+## Fase 0 — Setup (Dia 1)
 
-### Objetivo
-Tokenizar qualquer programa `.vex` corretamente.
+**Status:** Concluída.
 
-### Tokens a implementar
+- [x] Workspace Cargo com 12 crates + runtime
+- [x] `rust-toolchain.toml` pinando 1.85 + target windows-gnu
+- [x] `.gitignore`, CI GitHub Actions (Linux + cross-Windows)
+- [x] Script `tools/setup-llvm-mingw.sh` para baixar toolchain
+- [x] Documentação inicial (spec, grammar, ADR 0001)
+- [x] Examples placeholder (`hello.vex`, `fib.vex`, `ponto.vex`)
 
-```rust
-// crates/vex-lexer/src/lib.rs
-#[derive(Logos, Debug, PartialEq, Clone)]
-pub enum Token {
-    // Literais
-    #[regex(r"[0-9]+", |lex| lex.slice().parse::<i64>().ok())]
-    Int(i64),
-
-    #[regex(r"[0-9]+\.[0-9]+", |lex| lex.slice().parse::<f64>().ok())]
-    Float(f64),
-
-    #[regex(r#""[^"]*""#, |lex| lex.slice()[1..lex.slice().len()-1].to_string())]
-    Str(String),
-
-    #[token("true")]  True,
-    #[token("false")] False,
-
-    // Keywords
-    #[token("let")]    Let,
-    #[token("fn")]     Fn,
-    #[token("return")] Return,
-    #[token("if")]     If,
-    #[token("else")]   Else,
-    #[token("while")]  While,
-    #[token("for")]    For,
-    #[token("in")]     In,
-    #[token("struct")] Struct,
-    #[token("impl")]   Impl,
-    #[token("pub")]    Pub,
-    #[token("use")]    Use,
-    #[token("import")] Import,
-    #[token("mut")]    Mut,
-    #[token("match")]  Match,
-
-    // Tipos primitivos
-    #[token("int")]    TInt,
-    #[token("float")]  TFloat,
-    #[token("bool")]   TBool,
-    #[token("str")]    TStr,
-    #[token("void")]   TVoid,
-
-    // Identificadores
-    #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
-    Ident(String),
-
-    // Operadores
-    #[token("+")] Plus,
-    #[token("-")] Minus,
-    #[token("*")] Star,
-    #[token("/")] Slash,
-    #[token("%")] Percent,
-    #[token("=")] Eq,
-    #[token("==")] EqEq,
-    #[token("!=")] Neq,
-    #[token("<")]  Lt,
-    #[token(">")]  Gt,
-    #[token("<=")] Lte,
-    #[token(">=")] Gte,
-    #[token("&&")] And,
-    #[token("||")] Or,
-    #[token("!")  ] Bang,
-    #[token("->")] Arrow,
-    #[token("::")] ColonColon,
-
-    // Pontuação
-    #[token("(")] LParen,
-    #[token(")")] RParen,
-    #[token("{")] LBrace,
-    #[token("}")] RBrace,
-    #[token("[")] LBracket,
-    #[token("]")] RBracket,
-    #[token(":")] Colon,
-    #[token(";")] Semi,
-    #[token(",")] Comma,
-    #[token(".")] Dot,
-
-    #[regex(r"//[^\n]*", logos::skip)]  // comentários
-    #[regex(r"[ \t\n\r]+", logos::skip)] // whitespace
-    Error,
-}
-```
-
-**Entregável:** Suite de testes unitários cobrindo todos os tokens. `cargo test -p vex-lexer` verde.
-
----
-
-## Fase 2 — AST + Parser (Dias 4–7)
-
-### Objetivo
-Parser descent recursivo que produz uma AST tipada.
-
-### Nós da AST
-
-```rust
-// crates/vex-parser/src/ast.rs
-
-pub type Span = std::ops::Range<usize>;
-
-#[derive(Debug, Clone)]
-pub struct Spanned<T> {
-    pub node: T,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub enum Stmt {
-    Let {
-        name: String,
-        mutable: bool,
-        type_ann: Option<Type>,
-        value: Expr,
-    },
-    Fn {
-        name: String,
-        params: Vec<Param>,
-        ret_type: Type,
-        body: Vec<Stmt>,
-        is_pub: bool,
-    },
-    Return(Option<Expr>),
-    If {
-        cond: Expr,
-        then_body: Vec<Stmt>,
-        else_body: Option<Vec<Stmt>>,
-    },
-    While {
-        cond: Expr,
-        body: Vec<Stmt>,
-    },
-    For {
-        var: String,
-        iter: Expr,
-        body: Vec<Stmt>,
-    },
-    Struct {
-        name: String,
-        fields: Vec<(String, Type)>,
-        is_pub: bool,
-    },
-    Impl {
-        target: String,
-        methods: Vec<Stmt>,
-    },
-    Expr(Expr),
-}
-
-#[derive(Debug, Clone)]
-pub enum Expr {
-    Int(i64),
-    Float(f64),
-    Str(String),
-    Bool(bool),
-    Ident(String),
-    BinOp { op: BinOp, left: Box<Expr>, right: Box<Expr> },
-    UnaryOp { op: UnaryOp, val: Box<Expr> },
-    Call { name: Box<Expr>, args: Vec<Expr> },
-    FieldAccess { obj: Box<Expr>, field: String },
-    Index { obj: Box<Expr>, idx: Box<Expr> },
-    Array(Vec<Expr>),
-    Struct { name: String, fields: Vec<(String, Expr)> },
-    Match { val: Box<Expr>, arms: Vec<MatchArm> },
-    Block(Vec<Stmt>),
-}
-
-#[derive(Debug, Clone)]
-pub enum Type {
-    Int, Float, Bool, Str, Void,
-    Named(String),
-    Array(Box<Type>),
-    Ref(Box<Type>),
-    MutRef(Box<Type>),
-    Fn(Vec<Type>, Box<Type>),
-}
-
-#[derive(Debug, Clone)]
-pub struct Param {
-    pub name: String,
-    pub ty: Type,
-    pub mutable: bool,
-}
-
-#[derive(Debug, Clone)]
-pub enum BinOp { Add, Sub, Mul, Div, Mod, Eq, Neq, Lt, Gt, Lte, Gte, And, Or }
-
-#[derive(Debug, Clone)]
-pub enum UnaryOp { Neg, Not }
-```
-
-### Exemplo de sintaxe Vex válida após essa fase
-
-```vex
-fn fib(n: int) -> int {
-    if n <= 1 {
-        return n
-    }
-    return fib(n - 1) + fib(n - 2)
-}
-
-fn main() -> void {
-    let result: int = fib(10)
-    print(result)
-}
-```
-
-**Entregável:** Parser produz AST correta para os exemplos em `examples/`. `cargo test -p vex-parser` verde.
-
----
-
-## Fase 3 — Type Checker (Dias 8–12)
-
-### Objetivo
-Validar tipos em compile-time. Erros claros com span.
-
-### O que checar
-
-```
-1. Variáveis declaradas antes de usar
-2. Tipos compatíveis em operações (int + int ✓, int + str ✗)
-3. Retorno de funções bate com declaração
-4. Chamadas com argumentos corretos (quantidade e tipo)
-5. Campos de struct existem
-6. Inferência de tipo em `let x = 42` → int
-```
-
-### Estrutura
-
-```rust
-// crates/vex-typeck/src/lib.rs
-
-pub struct TypeEnv {
-    scopes: Vec<HashMap<String, Type>>,
-    functions: HashMap<String, FnSig>,
-    structs: HashMap<String, Vec<(String, Type)>>,
-}
-
-impl TypeEnv {
-    pub fn check_program(&mut self, stmts: &[Stmt]) -> Result<(), TypeError> { ... }
-    pub fn check_stmt(&mut self, stmt: &Stmt) -> Result<(), TypeError> { ... }
-    pub fn infer_expr(&mut self, expr: &Expr) -> Result<Type, TypeError> { ... }
-}
-
-#[derive(Debug)]
-pub struct TypeError {
-    pub message: String,
-    pub span: Span,
-    pub hint: Option<String>,
-}
-```
-
-### Exemplo de erro esperado
-
-```
-erro[E001]: tipos incompatíveis
-  --> main.vex:3:14
-  |
-3 |   let x: int = "hello"
-  |                ^^^^^^^ esperado `int`, encontrado `str`
-  |
-  dica: remova a anotação de tipo ou converta o valor
-```
-
-**Entregável:** Type checker rejeita programas inválidos com mensagens úteis. `cargo test -p vex-typeck` verde.
-
----
-
-## Fase 4 — Code Generation via LLVM (Dias 13–20)
-
-### Objetivo
-Compilar AST tipada para binário nativo via LLVM IR usando `inkwell`.
-
-### Estrutura
-
-```rust
-// crates/vex-codegen/src/lib.rs
-use inkwell::context::Context;
-use inkwell::builder::Builder;
-use inkwell::module::Module;
-use inkwell::values::*;
-
-pub struct Codegen<'ctx> {
-    ctx: &'ctx Context,
-    module: Module<'ctx>,
-    builder: Builder<'ctx>,
-    env: HashMap<String, PointerValue<'ctx>>,
-    fns: HashMap<String, FunctionValue<'ctx>>,
-}
-
-impl<'ctx> Codegen<'ctx> {
-    pub fn compile_program(&mut self, stmts: &[Stmt]) -> Result<(), CodegenError> { ... }
-    pub fn compile_fn(&mut self, stmt: &Stmt) -> Result<FunctionValue<'ctx>, CodegenError> { ... }
-    pub fn compile_expr(&mut self, expr: &Expr) -> Result<BasicValueEnum<'ctx>, CodegenError> { ... }
-    pub fn emit_object(&self, path: &str) -> Result<(), CodegenError> { ... }
-}
-```
-
-### Pipeline de compilação
-
-```
-arquivo.vex
-    ↓ lex()
-Vec<Token>
-    ↓ parse()
-Vec<Stmt> (AST)
-    ↓ typecheck()
-Vec<Stmt> (AST verificada)
-    ↓ codegen()
-LLVM IR (.ll)
-    ↓ llc / lld
-binário nativo
-```
-
-### Mapeamento de tipos Vex → LLVM
-
-| Vex    | LLVM IR       |
-|--------|---------------|
-| int    | i64           |
-| float  | double        |
-| bool   | i1            |
-| str    | i8* (ptr)     |
-| void   | void          |
-| struct | { field... }  |
-| array  | [N x T]*      |
-
-**Entregável:** `vex compile hello.vex` gera `hello` executável. Programa Hello World roda.
-
----
-
-## Fase 5 — CLI (`vex` binary) (Dias 21–23)
-
-### Objetivo
-Ferramenta de linha de comando completa.
-
-### Comandos
+### Setup local (uma vez)
 
 ```bash
-vex run   hello.vex          # compila e executa
-vex build hello.vex          # só compila → ./hello
-vex check hello.vex          # só type-check, sem compilar
-vex fmt   hello.vex          # formata o código (futuro)
-vex repl                     # REPL interativo
-vex new   meu-projeto        # scaffold de projeto
+# 1. WSL2 Ubuntu — instalar LLVM 17
+sudo apt-get install -y llvm-17-dev libpolly-17-dev clang-17 lld-17
+echo 'export LLVM_SYS_170_PREFIX=/usr/lib/llvm-17' >> ~/.bashrc
+
+# 2. Toolchain cross-Windows
+./tools/setup-llvm-mingw.sh
+rustup target add x86_64-pc-windows-gnu
+
+# 3. Build
+cargo build --workspace
+cargo test --workspace
 ```
-
-### Estrutura do CLI
-
-```rust
-// crates/vex-cli/src/main.rs
-use clap::{Parser, Subcommand};
-
-#[derive(Parser)]
-#[command(name = "vex", version = "0.1.0")]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    Run { file: PathBuf },
-    Build { file: PathBuf, #[arg(short, long)] output: Option<PathBuf> },
-    Check { file: PathBuf },
-    Repl,
-    New { name: String },
-}
-```
-
-**Entregável:** `vex run examples/fib.vex` funciona end-to-end.
 
 ---
 
-## Fase 6 — Stdlib mínima (Dias 24–28)
+## Fase 1 — Lexer (Dia 2-3)
 
-### Funções built-in prioritárias
+**Status:** Iniciada (esqueleto pronto em `crates/vex-lexer/`).
+
+- [x] Definir `Token` enum com `logos`
+- [x] Testes para keywords, números, strings, operadores, comentários
+- [ ] Suporte a string escapes (`\n`, `\t`, `\"`, `\\`)
+- [ ] Suporte a char literals (`'a'`)
+- [ ] Spans preservados em todos os tokens
+
+**Entregável:** `cargo test -p vex-lexer` verde.
+
+---
+
+## Fase 2 — Parser (Dia 4-8)
+
+**Mudança vs roadmap original:** parser **hand-written** (recursive
+descent + Pratt para expressões), não gerado.
+
+- [ ] Estrutura de erros com recovery (`Result` + sync points)
+- [ ] Recursive descent para items (fn, struct, impl)
+- [ ] Pratt parser para expressões (precedência via binding power)
+- [ ] Statements (let, return, if, while, for, match)
+- [ ] Patterns (literal, ident, wildcard, range)
+- [ ] Integração `miette` — erros com span + hint
+
+**Entregável:** Parser produz AST correta para todos os `examples/`.
+
+---
+
+## Fase 3 — Resolução de nomes + HIR (Dia 9-10)
+
+**Novo no roadmap v2.**
+
+- [ ] Atribuir `DefId` único a cada item
+- [ ] Resolver identificadores → `DefId`
+- [ ] Construir tabela de símbolos por escopo
+- [ ] AST → HIR lowering
+
+---
+
+## Fase 4 — Type checker (Dia 11-15)
+
+- [ ] Tipos primitivos + checagem de compatibilidade
+- [ ] Inferência local Hindley-Milner para `let` sem anotação
+- [ ] Validação de retornos vs assinatura
+- [ ] Validação de chamadas (aridade + tipos)
+- [ ] Validação de campos de struct
+- [ ] Erros tipados com `miette` + hints
+
+**Entregável:** Programas inválidos rejeitados com mensagens úteis.
+
+---
+
+## Fase 5 — MIR + ownership baseline (Dia 16-20)
+
+**Novo no roadmap v2.**
+
+- [ ] HIR → MIR lowering (CFG)
+- [ ] Generational references: tag de 8 bytes por alocação
+- [ ] Gen check inserido em derefs
+- [ ] ASAP destruction: análise de último uso
+- [ ] Validação básica (sem region analysis ainda — v1.1+)
+
+---
+
+## Fase 6 — Codegen LLVM (Dia 21-26)
+
+- [ ] Setup `inkwell` 0.9 + LLVM 17
+- [ ] Mapeamento de tipos Vex → LLVM IR
+- [ ] Codegen de fn, call, return
+- [ ] Codegen de control flow (if, while, for)
+- [ ] Codegen de structs + acesso a campos
+- [ ] Linkar runtime (`vex-runtime` staticlib)
+- [ ] **Cross-compile** Linux→Windows via `--target x86_64-pc-windows-gnu`
+
+**Entregável:** `vex build hello.vex --target windows` gera `hello.exe`.
+
+---
+
+## Fase 7 — CLI + formatter (Dia 27-30)
+
+- [ ] `vex run` / `build` / `check` / `fmt` / `repl` / `new`
+- [ ] Formatter opinativo (zero config) — `vex-fmt`
+- [ ] Scaffold de projeto (`vex new`)
+
+**Entregável:** Toolchain end-to-end usável.
+
+---
+
+## Fase 8 — Stdlib mínima (Dia 31-35)
 
 ```vex
 // I/O
-print(val: any) -> void
-println(val: any) -> void
-input(prompt: str) -> str
-read_file(path: str) -> str
-write_file(path: str, content: str) -> void
-
+print, println, input, read_file, write_file
 // Conversões
-to_int(val: str) -> int
-to_float(val: str) -> float
-to_str(val: any) -> str
-
+to_int, to_float, to_str
 // Arrays
-len(arr: [T]) -> int
-push(arr: mut [T], val: T) -> void
-pop(arr: mut [T]) -> T
-map(arr: [T], f: fn(T) -> U) -> [U]
-filter(arr: [T], f: fn(T) -> bool) -> [T]
-
+len, push, pop, map, filter
 // Strings
-split(s: str, sep: str) -> [str]
-join(arr: [str], sep: str) -> str
-trim(s: str) -> str
-contains(s: str, sub: str) -> bool
+split, join, trim, contains
 ```
 
-**Entregável:** Exemplos usando stdlib compilam e rodam.
+**Entregável:** Exemplos usando stdlib compilam e rodam em Linux **e** Windows.
 
 ---
 
-## Fase 7 — Testes de integração (Dias 29–32)
+## Fase 9 — LSP MVP (Dia 36-40)
 
-### Programas de benchmark
+**Lição da Gleam — tooling de Dia 1 é diferencial.**
 
-```
-examples/
-├── hello.vex         # hello world
-├── fib.vex           # fibonacci recursivo
-├── fizzbuzz.vex      # fizzbuzz clássico
-├── bubble_sort.vex   # ordenação
-├── linked_list.vex   # structs com ponteiros
-├── http_server.vex   # (futuro — com stdlib net)
-└── nn.vex            # (futuro — IA simples)
-```
-
-### Benchmark contra Rust/Python
-
-```bash
-# medir tempo de compilação e execução
-hyperfine 'vex run fib.vex' 'python fib.py' 'rustc fib.rs && ./fib'
-```
+- [ ] Diagnostics inline
+- [ ] Hover (mostra tipo)
+- [ ] Go-to-definition
+- [ ] Autocomplete básico
 
 ---
 
-## Fase 8 — Features avançadas (Futuro)
+## Fase 10 — Testes integração + benchmarks (Dia 41-45)
 
-### Ownership simplificado (não Rust verboso)
-
-```vex
-fn process(data: &[int]) -> int {  // borrow imutável, sem lifetime explícito
-    return data[0]
-}
-
-fn modify(data: &mut [int]) -> void {  // borrow mutável
-    data[0] = 99
-}
-```
-
-### Pattern matching
-
-```vex
-match x {
-    0     => print("zero"),
-    1..10 => print("pequeno"),
-    _     => print("grande"),
-}
-```
-
-### Generics
-
-```vex
-fn max<T>(a: T, b: T) -> T {
-    if a > b { return a }
-    return b
-}
-```
-
-### WASM target
-
-```bash
-vex build app.vex --target wasm32   # porta pra browser
-```
-
-### LSP (editor support)
-
-```
-vex-lsp   # language server protocol
-          # autocomplete, go-to-def, hover types, erros inline
-```
+- [ ] Snapshot tests (`insta`) para parser e typeck
+- [ ] UI tests (programas inválidos → erro esperado)
+- [ ] Benchmarks `hyperfine`: vex vs Rust vs Python vs Zig
+- [ ] Fuzz corpus
 
 ---
 
-## Dependências de sistema necessárias
+## Fases futuras (v1.x+)
 
-```bash
-# Ubuntu/Debian
-apt install llvm-17 llvm-17-dev clang-17 lld-17
-
-# Fedora (seu caso)
-dnf install llvm17 llvm17-devel clang lld
-
-# Variável de ambiente
-export LLVM_SYS_170_PREFIX=/usr/lib/llvm-17
-```
-
----
-
-## Ordem de execução para Claude Code
-
-```
-1. scaffold do workspace Cargo (Fase 0)
-2. vex-lexer com logos + testes (Fase 1)
-3. vex-parser AST completa + testes (Fase 2)
-4. vex-typeck com inferência + erros bonitos (Fase 3)
-5. vex-codegen inkwell básico — int/float/fn/call (Fase 4)
-6. vex-cli com run/build/check (Fase 5)
-7. stdlib mínima embutida (Fase 6)
-8. testes de integração end-to-end (Fase 7)
-```
-
-> **Nota para Claude Code:** implemente cada fase em ordem. Não avance para a próxima antes de ter testes passando na atual. Use `cargo test --workspace` antes de cada commit.
+| Feature | Inspiração | Fase |
+|---------|-----------|------|
+| Region analysis (otimiza gen checks) | Vale | v1.1 |
+| Generics monomorfizados | Rust | v1.2 |
+| Pattern matching exaustivo | Rust/Roc | v1.2 |
+| Comptime explícito | Zig | v1.3 |
+| WASM target | wasm32-unknown-unknown | v1.4 |
+| Async runtime opt-in | — | v2.0 |
+| Package manager (`vex add`) | Cargo | v2.0 |
 
 ---
 
-## Exemplo de programa Vex alvo (deve rodar ao fim da Fase 6)
+## Princípios de execução
 
-```vex
-struct Ponto {
-    x: float,
-    y: float,
-}
-
-impl Ponto {
-    fn distancia(self, outro: Ponto) -> float {
-        let dx: float = self.x - outro.x
-        let dy: float = self.y - outro.y
-        return sqrt(dx * dx + dy * dy)
-    }
-}
-
-fn main() -> void {
-    let a: Ponto = Ponto { x: 0.0, y: 0.0 }
-    let b: Ponto = Ponto { x: 3.0, y: 4.0 }
-    let d: float = a.distancia(b)
-    println(d)   // 5.0
-}
-```
+1. **Não avançar fase sem testes verdes** na atual.
+2. **`cargo test --workspace` antes de cada commit.**
+3. **Documentar decisões não-óbvias em `docs/design/000X-*.md`** (ADR).
+4. **Mensagens de erro são feature, não detalhe** — cada `TypeError`
+   deve ter span + hint.
+5. **Performance é claim — meça.** Benchmarks compõem o CI a partir da Fase 10.
 
 ---
 
-*Vex Lang — construída por Jeff Almeida. v0.1 em desenvolvimento.*
+*Vex Lang — criada por Jeff Almeida. v0.1 em desenvolvimento.*

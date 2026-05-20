@@ -13,12 +13,13 @@ members = [
     "crates/vex-cli",
     "crates/vex-fmt",
     "crates/vex-lsp",
+    "runtime",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.95"
 authors = ["Jeff Almeida <jefersonreisalmeida8356@gmail.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/jeffalmeida/vex"
@@ -41,7 +42,7 @@ clap = { version = "4", features = ["derive"] }
 # Utilities
 indexmap = "2"
 smallvec = "1"
-smol_str = "0.3"
+smol_str = "0.2"
 ahash = "0.8"
 
 # Testing
@@ -56,6 +57,7 @@ vex-hir          = { path = "crates/vex-hir",          version = "0.1.0" }
 vex-typeck       = { path = "crates/vex-typeck",       version = "0.1.0" }
 vex-mir          = { path = "crates/vex-mir",          version = "0.1.0" }
 vex-codegen      = { path = "crates/vex-codegen",      version = "0.1.0" }
+vex-runtime      = { path = "runtime",                 version = "0.1.0" }
 vex-driver       = { path = "crates/vex-driver",       version = "0.1.0" }
 vex-diagnostics  = { path = "crates/vex-diagnostics",  version = "0.1.0" }
 vex-fmt          = { path = "crates/vex-fmt",          version = "0.1.0" }

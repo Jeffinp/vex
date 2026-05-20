@@ -1,0 +1,13 @@
+[package]
+name = "vex-codegen"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "LLVM IR code generation for Vex via inkwell"
+
+[dependencies]
+vex-mir.workspace = true
+vex-diagnostics.workspace = true
+inkwell.workspace = true
+thiserror.workspace = true

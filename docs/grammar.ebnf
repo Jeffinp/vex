@@ -1,0 +1,56 @@
+(* Vex Language — Gramática EBNF (v0.1 draft)
+   Forma informal — refinada conforme o parser evolui (Fase 2). *)
+
+module          = { item } ;
+
+item            = fn_decl | struct_decl | impl_block | const_decl | use_decl ;
+
+fn_decl         = [ "pub" ] [ "comptime" ] "fn" IDENT
+                  "(" [ param { "," param } ] ")"
+                  [ "->" type ] block ;
+
+param           = [ "mut" ] IDENT ":" type ;
+
+struct_decl     = [ "pub" ] "struct" IDENT "{" { field "," } "}" ;
+field           = IDENT ":" type ;
+
+impl_block      = "impl" IDENT "{" { fn_decl } "}" ;
+
+const_decl      = [ "pub" ] "const" IDENT ":" type "=" expr ;
+
+use_decl        = "use" path ;
+path            = IDENT { "::" IDENT } ;
+
+block           = "{" { stmt } "}" ;
+
+stmt            = let_stmt
+                | return_stmt
+                | if_stmt
+                | while_stmt
+                | for_stmt
+                | "break"
+                | "continue"
+                | expr_stmt ;
+
+let_stmt        = "let" [ "mut" ] IDENT [ ":" type ] "=" expr ;
+return_stmt     = "return" [ expr ] ;
+if_stmt         = "if" expr block [ "else" ( block | if_stmt ) ] ;
+while_stmt      = "while" expr block ;
+for_stmt        = "for" IDENT "in" expr block ;
+expr_stmt       = expr ;
+
+(* Expressões definidas via Pratt parsing — precedência implementada
+   no parser, não na gramática. *)
+expr            = (* operadores binários, unários, calls, field access,
+                    index, struct literals, match, blocks, refs *) ;
+
+type            = "int" | "float" | "bool" | "str" | "void"
+                | IDENT
+                | "[" type "]"
+                | "&" [ "mut" ] type
+                | "fn" "(" [ type { "," type } ] ")" "->" type ;
+
+IDENT           = letter { letter | digit | "_" } ;
+INT_LIT         = digit { digit | "_" } ;
+FLOAT_LIT       = INT_LIT "." INT_LIT ;
+STR_LIT         = '"' { any_char_except_quote | escape } '"' ;
