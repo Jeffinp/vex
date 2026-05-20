@@ -1,0 +1,12 @@
+[package]
+name = "vex-mir"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Mid-level IR for Vex (ownership/borrow lowering)"
+
+[dependencies]
+vex-hir.workspace = true
+indexmap.workspace = true
+smol_str.workspace = true

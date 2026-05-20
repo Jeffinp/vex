@@ -1,0 +1,18 @@
+[package]
+name = "vex-parser"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Hand-written recursive descent + Pratt parser for Vex"
+
+[dependencies]
+vex-lexer.workspace = true
+vex-ast.workspace = true
+vex-diagnostics.workspace = true
+smol_str.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+pretty_assertions.workspace = true

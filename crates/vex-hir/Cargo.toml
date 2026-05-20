@@ -1,0 +1,12 @@
+[package]
+name = "vex-hir"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "High-level IR for Vex (post name-resolution)"
+
+[dependencies]
+vex-ast.workspace = true
+indexmap.workspace = true
+smol_str.workspace = true

@@ -1,0 +1,75 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/vex-lexer",
+    "crates/vex-ast",
+    "crates/vex-parser",
+    "crates/vex-hir",
+    "crates/vex-typeck",
+    "crates/vex-mir",
+    "crates/vex-codegen",
+    "crates/vex-driver",
+    "crates/vex-diagnostics",
+    "crates/vex-cli",
+    "crates/vex-fmt",
+    "crates/vex-lsp",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+authors = ["Jeff Almeida <jefersonreisalmeida8356@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jeffalmeida/vex"
+homepage = "https://vex-lang.org"
+
+[workspace.dependencies]
+# Codegen
+inkwell = { version = "0.9", features = ["llvm17-0"] }
+
+# Lexer / parser
+logos = "0.14"
+
+# Diagnostics
+miette = { version = "7", features = ["fancy"] }
+thiserror = "1"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Utilities
+indexmap = "2"
+smallvec = "1"
+smol_str = "0.3"
+ahash = "0.8"
+
+# Testing
+insta = { version = "1", features = ["yaml"] }
+pretty_assertions = "1"
+
+# Workspace-internal
+vex-lexer        = { path = "crates/vex-lexer",        version = "0.1.0" }
+vex-ast          = { path = "crates/vex-ast",          version = "0.1.0" }
+vex-parser       = { path = "crates/vex-parser",       version = "0.1.0" }
+vex-hir          = { path = "crates/vex-hir",          version = "0.1.0" }
+vex-typeck       = { path = "crates/vex-typeck",       version = "0.1.0" }
+vex-mir          = { path = "crates/vex-mir",          version = "0.1.0" }
+vex-codegen      = { path = "crates/vex-codegen",      version = "0.1.0" }
+vex-driver       = { path = "crates/vex-driver",       version = "0.1.0" }
+vex-diagnostics  = { path = "crates/vex-diagnostics",  version = "0.1.0" }
+vex-fmt          = { path = "crates/vex-fmt",          version = "0.1.0" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.bench]
+inherits = "release"
+debug = true

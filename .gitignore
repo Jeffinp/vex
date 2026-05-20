@@ -1,0 +1,36 @@
+/target
+**/*.rs.bk
+Cargo.lock.bak
+
+# LLVM/mingw toolchain (baixado pelo setup script)
+/tools/llvm-mingw/
+/tools/*.tar.xz
+/tools/*.zip
+
+# Outputs locais
+*.ll
+*.bc
+*.o
+*.obj
+*.exe
+*.pdb
+/out/
+/dist/
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Snapshots de teste pendentes
+**/*.snap.new
+**/*.pending-snap
+
+# Logs
+*.log

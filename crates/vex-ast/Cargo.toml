@@ -1,0 +1,10 @@
+[package]
+name = "vex-ast"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Abstract syntax tree types for Vex"
+
+[dependencies]
+smol_str.workspace = true
