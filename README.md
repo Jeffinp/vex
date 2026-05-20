@@ -93,6 +93,12 @@ $ ./target/debug/vex run examples/fib.vex
 
 $ ./target/debug/vex run examples/ponto.vex
 5.0
+
+$ ./target/debug/vex run examples/array.vex
+5
+10
+50
+150
 ```
 
 ---

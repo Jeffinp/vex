@@ -107,13 +107,28 @@ pub fn compile(req: CompileRequest) -> Result<(), DriverError> {
             fn_ret_tys.insert(f.id, vex_typeck::lower_hir_type(&f.ret_type, None));
         }
     }
-    let mir = match vex_mir::lower_module(&hir, &|id| fn_ret_tys.get(&id).cloned()) {
+    let mut mir = match vex_mir::lower_module(&hir, &|id| fn_ret_tys.get(&id).cloned()) {
         Ok(m) => m,
         Err(e) => {
             eprintln!("erro de lowering: {e}");
             return Err(DriverError::Codegen);
         }
     };
+
+    // Ownership pass: injeta Statement::Drop nos drop_points.
+    // Roda sempre — análise é barata. Se houver erros ownership, abortamos.
+    for f in mir.fns.iter_mut() {
+        let liv = vex_mir::analyze_liveness(f);
+        let own = vex_mir::analyze_ownership(f, &liv);
+        if !own.errors.is_empty() {
+            eprintln!("✗ {} — {} erro(s) de ownership", path_str, own.errors.len());
+            for e in &own.errors {
+                eprintln!("  {e}");
+            }
+            return Err(DriverError::Resolve);
+        }
+        vex_mir::inject_drops(f, &own.drop_points);
+    }
 
     if let Some(EmitKind::Mir) = req.emit {
         println!("{}", vex_mir::pretty_print_module(&mir));

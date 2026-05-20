@@ -151,6 +151,8 @@ struct Runtime<'ctx> {
     sqrt: FunctionValue<'ctx>,
     abs_f: FunctionValue<'ctx>,
     abs_i: FunctionValue<'ctx>,
+    array_alloc: FunctionValue<'ctx>,
+    array_drop: FunctionValue<'ctx>,
 }
 
 impl<'ctx> Runtime<'ctx> {
@@ -177,6 +179,8 @@ impl<'ctx> Runtime<'ctx> {
             sqrt:         decl("vex_sqrt",         f64_t.fn_type(&[f64_t.into()], false)),
             abs_f:        decl("vex_abs_f64",      f64_t.fn_type(&[f64_t.into()], false)),
             abs_i:        decl("vex_abs_i64",      i64_t.fn_type(&[i64_t.into()], false)),
+            array_alloc:  decl("vex_array_alloc",  i8ptr.fn_type(&[i64_t.into()], false)),
+            array_drop:   decl("vex_array_drop",   void.fn_type(&[i8ptr.into(), i64_t.into()], false)),
         }
     }
 }
@@ -196,11 +200,37 @@ impl<'ctx, 'a> Codegen<'ctx, 'a> {
                 Some(s) => (*s).into(),
                 None => self.ctx.i8_type().into(),
             },
-            Ty::Array(_) | Ty::Ref { .. } | Ty::Any | Ty::Error => {
-                // Pointer-sized placeholder. Arrays/refs reais ficam para
-                // expansão de tipos no MVP.
+            // Arrays: fat pointer `{ ptr, i64 }` (16 bytes). Element type
+            // não entra no LLVM type — codegen consulta `Ty::Array(inner)`
+            // diretamente nas operações de Index/ArrayInit/Drop.
+            Ty::Array(_) => self.array_struct_type().into(),
+            Ty::Ref { .. } | Ty::Any | Ty::Error => {
                 self.ctx.ptr_type(AddressSpace::default()).into()
             }
+        }
+    }
+
+    /// Tipo LLVM do fat pointer de array: `{ ptr: i8*, len: i64 }`.
+    fn array_struct_type(&self) -> StructType<'ctx> {
+        self.ctx.struct_type(
+            &[
+                self.ctx.ptr_type(AddressSpace::default()).into(),
+                self.ctx.i64_type().into(),
+            ],
+            false,
+        )
+    }
+
+    /// Tamanho em bytes do elemento de um `Ty::Array(inner)`.
+    /// Hoje suportamos apenas elementos com tamanho de máquina conhecido
+    /// estaticamente. Suficiente para o MVP.
+    fn elem_size_bytes(&self, elem: &Ty) -> u64 {
+        match elem {
+            Ty::Int | Ty::Float => 8,
+            Ty::Bool => 1,
+            Ty::Char => 4,
+            Ty::Str | Ty::Ref { .. } | Ty::Struct(_) | Ty::Array(_)
+            | Ty::Any | Ty::Error | Ty::Void => 8, // pointer-sized fallback
         }
     }
 
@@ -340,7 +370,8 @@ impl<'ctx, 'a> Codegen<'ctx, 'a> {
     ) -> Result<(), CodegenError> {
         match s {
             Statement::Assign { local, rvalue, .. } => {
-                let v = self.compile_rvalue(rvalue, locals, f)?;
+                let dest_ty = f.locals[local.0 as usize].ty.clone();
+                let v = self.compile_rvalue(rvalue, locals, f, &dest_ty)?;
                 self.builder
                     .build_store(locals[local.0 as usize], v)
                     .map_err(builder_err)?;
@@ -350,7 +381,61 @@ impl<'ctx, 'a> Codegen<'ctx, 'a> {
                 let v = self.operand_value(value, locals, f)?;
                 self.builder.build_store(ptr, v).map_err(builder_err)?;
             }
+            Statement::Drop { local, .. } => {
+                self.compile_drop(*local, locals, f)?;
+            }
             Statement::Nop => {}
+        }
+        Ok(())
+    }
+
+    /// Emite código de drop para `local` conforme o tipo:
+    /// - **Array(_):** carrega `(ptr, len)` da struct, calcula
+    ///   `len * elem_size` e chama `vex_array_drop(ptr, n_bytes)`.
+    /// - **Str / Struct / outros owning:** no-op por ora (strings vivem
+    ///   em `.rodata`; structs sem campos heap-resident não precisam).
+    /// - **Tipos Copy:** no-op (não deveria nem chegar aqui — análise
+    ///   filtra, mas mantemos defensivo).
+    fn compile_drop(
+        &self,
+        local: LocalId,
+        locals: &[PointerValue<'ctx>],
+        f: &MirFn,
+    ) -> Result<(), CodegenError> {
+        let ty = f.locals[local.0 as usize].ty.clone();
+        match &ty {
+            Ty::Array(elem) => {
+                // Carrega fat pointer da alocação.
+                let arr_ty = self.array_struct_type();
+                let fat = self.builder
+                    .build_load(arr_ty, locals[local.0 as usize], "arr_drop_ld")
+                    .map_err(builder_err)?;
+                let fat = fat.into_struct_value();
+                let ptr_v = self.builder
+                    .build_extract_value(fat, 0, "arr_ptr")
+                    .map_err(builder_err)?;
+                let len_v = self.builder
+                    .build_extract_value(fat, 1, "arr_len")
+                    .map_err(builder_err)?
+                    .into_int_value();
+
+                // n_bytes = len * elem_size
+                let elem_size = self.ctx.i64_type().const_int(self.elem_size_bytes(elem), false);
+                let nbytes = self.builder
+                    .build_int_mul(len_v, elem_size, "arr_nbytes")
+                    .map_err(builder_err)?;
+
+                self.builder
+                    .build_call(
+                        self.runtime.array_drop,
+                        &[ptr_v.into(), nbytes.into()],
+                        "arr_drop",
+                    )
+                    .map_err(builder_err)?;
+            }
+            _ => {
+                // Sem heap pra liberar — drop é no-op.
+            }
         }
         Ok(())
     }
@@ -450,6 +535,7 @@ impl<'ctx, 'a> Codegen<'ctx, 'a> {
         r: &Rvalue,
         locals: &[PointerValue<'ctx>],
         f: &MirFn,
+        dest_ty: &Ty,
     ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
         match r {
             Rvalue::Use(o) => self.operand_value(o, locals, f),
@@ -497,9 +583,84 @@ impl<'ctx, 'a> Codegen<'ctx, 'a> {
                 let loaded = self.builder.build_load(st, tmp, "struct_ld").map_err(builder_err)?;
                 Ok(loaded)
             }
-            // Casos não cobertos no MVP — retornam unit placeholder.
-            Rvalue::Index { .. } | Rvalue::ArrayInit { .. } => {
-                Ok(self.ctx.i8_type().const_int(0, false).into())
+            Rvalue::ArrayInit { items } => {
+                // dest_ty = Array(elem). Aloca heap, popula, monta fat ptr.
+                let Ty::Array(elem_box) = dest_ty else {
+                    return Err(CodegenError::Llvm(
+                        "ArrayInit em destino não-array".into(),
+                    ));
+                };
+                let elem_ty = (**elem_box).clone();
+                let elem_llty = self.llvm_type(&elem_ty);
+                let elem_size = self.elem_size_bytes(&elem_ty);
+                let len = items.len() as u64;
+
+                // n_bytes = elem_size * len
+                let nbytes_const = self.ctx.i64_type().const_int(elem_size * len.max(1), false);
+                let ptr = self.builder
+                    .build_call(
+                        self.runtime.array_alloc,
+                        &[nbytes_const.into()],
+                        "arr_alloc",
+                    )
+                    .map_err(builder_err)?;
+                let raw_ptr = match ptr.try_as_basic_value() {
+                    inkwell::values::ValueKind::Basic(v) => v.into_pointer_value(),
+                    _ => return Err(CodegenError::Llvm("vex_array_alloc não retornou ptr".into())),
+                };
+
+                // Popula elementos via GEP + store.
+                for (i, op) in items.iter().enumerate() {
+                    let idx_v = self.ctx.i64_type().const_int(i as u64, false);
+                    let slot = unsafe {
+                        self.builder.build_gep(
+                            elem_llty, raw_ptr, &[idx_v], &format!("arr_init_{i}"),
+                        )
+                    }
+                    .map_err(builder_err)?;
+                    let v = self.operand_value(op, locals, f)?;
+                    self.builder.build_store(slot, v).map_err(builder_err)?;
+                }
+
+                // Monta { ptr, len } via insertvalue para evitar alloca.
+                let arr_ty = self.array_struct_type();
+                let undef = arr_ty.get_undef();
+                let with_ptr = self.builder
+                    .build_insert_value(undef, raw_ptr, 0, "arr_setptr")
+                    .map_err(builder_err)?;
+                let len_v = self.ctx.i64_type().const_int(len, false);
+                let with_len = self.builder
+                    .build_insert_value(with_ptr, len_v, 1, "arr_setlen")
+                    .map_err(builder_err)?;
+                Ok(with_len.as_basic_value_enum())
+            }
+            Rvalue::Index { obj, idx } => {
+                // Array LIVE no `obj` é fat pointer { ptr, i64 }.
+                let arr_ty = self.array_struct_type();
+                let fat = self.builder
+                    .build_load(arr_ty, locals[obj.0 as usize], "arr_ld")
+                    .map_err(builder_err)?
+                    .into_struct_value();
+                let raw_ptr = self.builder
+                    .build_extract_value(fat, 0, "arr_ptr")
+                    .map_err(builder_err)?
+                    .into_pointer_value();
+
+                // Elem type via tipo do local `obj`.
+                let elem_ty = match &f.locals[obj.0 as usize].ty {
+                    Ty::Array(inner) => (**inner).clone(),
+                    _ => return Err(CodegenError::Llvm("Index em não-array".into())),
+                };
+                let elem_llty = self.llvm_type(&elem_ty);
+
+                let idx_v = self.load_local(locals, f, *idx)?.into_int_value();
+                let slot = unsafe {
+                    self.builder.build_gep(elem_llty, raw_ptr, &[idx_v], "arr_idx")
+                }
+                .map_err(builder_err)?;
+                self.builder
+                    .build_load(elem_llty, slot, "arr_ld_elem")
+                    .map_err(builder_err)
             }
         }
     }
@@ -653,6 +814,16 @@ impl<'ctx, 'a> Codegen<'ctx, 'a> {
                     inkwell::values::ValueKind::Basic(v) => v,
                     inkwell::values::ValueKind::Instruction(_) => zero,
                 });
+            }
+        }
+
+        // `len` para arrays: extrai segundo campo do fat pointer.
+        if name.as_str() == "len" {
+            if let Some(BasicValueEnum::StructValue(sv)) = arg0 {
+                let len = self.builder
+                    .build_extract_value(sv, 1, "len_extract")
+                    .map_err(builder_err)?;
+                return Ok(len);
             }
         }
 

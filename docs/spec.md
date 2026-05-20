@@ -28,8 +28,12 @@ Três princípios não-negociáveis:
   refinado por statement, drop points, use-after-move conservador).
 - ✅ **Codegen LLVM** via inkwell 0.9 + LLVM 17: `vex run` produz binário.
 - ✅ **Formatter** opinativo emite forma canonical Python-friendly.
-- ✅ **3 exemplos rodam Python-like:** `hello`, `fib`, `ponto`.
-- ⏳ Próximo: drop emission no codegen, gen-ref tags (Vale), linear
+- ✅ **Arrays heap-allocated** com layout `{ ptr, len }` (16B fat pointer).
+  Runtime: `vex_array_alloc` / `vex_array_drop`. `len(xs)` builtin.
+- ✅ **Drop emission real**: `Statement::Drop` injetado no MIR via
+  ownership pass; codegen emite `vex_array_drop` antes de cada Return.
+- ✅ **4 exemplos rodam:** `hello`, `fib`, `ponto`, `array` (novo).
+- ⏳ Próximo: bounds check, push/pop, gen-ref tags (Vale), linear
   types (Austral), methods dentro de `class`.
 
 ## Sintaxe (informal, atualizada conforme parser evolui)
@@ -189,3 +193,5 @@ com a Fase 2.
 - `0006-codegen-llvm.md` — codegen via inkwell + linker subprocess
 - `0007-ownership-and-python-ergonomics.md` — análise de ownership (5b
   infra) + ergonomia Python-like (script mode, auto-let, `def`/`class`)
+- `0008-arrays-and-drops.md` — arrays heap-allocated `{ ptr, len }`
+  + emissão real de `Statement::Drop` + `vex_array_drop` no runtime

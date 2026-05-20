@@ -125,6 +125,10 @@ fn collect_uses_defs(stmt: &Statement, bl: &mut BlockLiveness) {
             place_uses(place, bl);
             operand_use(value, bl);
         }
+        Statement::Drop { local, .. } => {
+            // Drop conta como uso do local (lê antes de liberar).
+            add_use(*local, bl);
+        }
         Statement::Nop => {}
     }
 }

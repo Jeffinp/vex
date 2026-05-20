@@ -11,8 +11,8 @@ Duas frentes convergentes nesta fase:
 1. **Ownership análise** (5b) — sobre o MIR/CFG, prover infraestrutura
    para ASAP destruction (Mojo), drop placement, last-use refinado,
    detecção de use-after-move.
-2. **Ergonomia Python-like** — promessa fundadora: *legível como Python,
-   seguro como Rust, rápido como C++*. O `hello.vex` atual em `fn main() -> void`
+2. **Ergonomia Python-like** — promessa fundadora: _legível como Python,
+   seguro como Rust, rápido como C++_. O `hello.vex` atual em `fn main() -> void`
    é cópia de Rust. Precisa parecer Python.
 
 ## Pesquisa (5b)
@@ -27,6 +27,7 @@ entrega a **infraestrutura analítica** (~700 LOC, 1 dia); emissão real
 de drops + gen-refs + linear types ficam para 5b.2-5b.4.
 
 Fontes-chave:
+
 - Mojo: <https://mojolang.org/docs/manual/lifecycle/death/>
 - Vale: <https://verdagon.dev/blog/generational-references>
 - Austral: <https://borretti.me/article/how-australs-linear-type-checker-works>
@@ -85,17 +86,18 @@ normalizam.
 
 Crate `vex-mir` ganha módulo `ownership` com 3 saídas:
 
-| Saída | Para que serve |
-|-------|----------------|
+| Saída                               | Para que serve                                   |
+| ----------------------------------- | ------------------------------------------------ |
 | `uses: Map<LocalId, Vec<Location>>` | todas as posições de uso (precisão de statement) |
-| `last_use: Map<LocalId, Location>` | última posição CFG — base para ASAP drops |
-| `drop_points: Vec<DropPoint>` | locais que precisam drop + onde |
-| `errors: Vec<OwnershipError>` | use-after-move detectado |
+| `last_use: Map<LocalId, Location>`  | última posição CFG — base para ASAP drops        |
+| `drop_points: Vec<DropPoint>`       | locais que precisam drop + onde                  |
+| `errors: Vec<OwnershipError>`       | use-after-move detectado                         |
 
 `Location { block, stmt }` aponta para statement específico (não bloco
 inteiro). `stmt = u32::MAX` significa "no terminator".
 
 **`is_drop_required(Ty)`** classifica tipos:
+
 - **Copy** (sem drop): Int, Float, Bool, Char, Void, Ref{..}
 - **Owning** (precisa drop): Str, Struct(_), Array(_), Any, Error
 
@@ -105,7 +107,7 @@ recursos sempre exigem `__del__`.
 ### 3. Algoritmo de last-use refinado
 
 Antes (em `liveness::FnLiveness::last_use`): granularidade de
-**bloco** — "_x foi visto pela última vez em bb3". Insuficiente para
+**bloco** — "\_x foi visto pela última vez em bb3". Insuficiente para
 ASAP — não diz **quando** dentro de bb3.
 
 Agora (em `ownership::analyze`): granularidade de **statement** dentro
@@ -133,6 +135,7 @@ Algoritmo simples sobre o CFG (sem dataflow):
    se `moved_at < used_at`.
 
 **Limitações conscientes** (documentadas no código):
+
 - Não rastreia move condicional em branches divergentes — se um caminho
   move e outro não, a análise é conservadora (não emite erro).
 - Span do move report é placeholder (`0..0`) — refinamento em sub-fase
@@ -155,6 +158,7 @@ vex check file.vex --emit=ownership
 ```
 
 Output:
+
 ```
 fn #2 distancia ownership:
   uses:

@@ -59,6 +59,10 @@ fn pretty_stmt(s: &Statement, out: &mut String) {
             write!(out, " <- ").unwrap();
             pretty_operand(value, out);
         }
+        Statement::Drop { local, .. } => {
+            use std::fmt::Write;
+            write!(out, "drop _{}", local.0).unwrap();
+        }
         Statement::Nop => out.push_str("nop"),
     }
 }

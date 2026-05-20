@@ -75,6 +75,11 @@ pub enum Statement {
     Assign { local: LocalId, rvalue: Rvalue, span: Span },
     /// `*place = value` para atribuição via field/index/borrow.
     Store { place: Place, value: Operand, span: Span },
+    /// Drop semântico: chama destrutor do tipo do local (no-op para
+    /// tipos Copy; vex_array_drop / vex_str_drop / field-wise para
+    /// owning). Injetado pela passagem de ownership baseada em
+    /// `OwnershipAnalysis::drop_points`.
+    Drop { local: LocalId, span: Span },
     /// No-op explícito (placeholder para hooks futuros de ownership).
     Nop,
 }

@@ -75,6 +75,47 @@ pub extern "C" fn vex_gen_check(_gen_stored: u64, _gen_current: u64) {
     // TODO Fase 5b
 }
 
+// ── Arrays heap-allocated ──────────────────────────────────────────────
+//
+// Layout em LLVM: fat pointer `{ ptr: i8*, len: i64 }` (16 bytes).
+// `vex_array_alloc` retorna ponteiro raw que o codegen armazena no
+// campo `ptr` da struct. Codegen calcula `elem_size` em tempo de
+// compilação para evitar overhead de tabela de tipos no runtime.
+
+/// Aloca `n_bytes` heap zerados. Aborta se ENOMEM (sem unwind no MVP).
+///
+/// Codegen passa `count * sizeof(elem)` como `n_bytes`.
+#[no_mangle]
+pub extern "C" fn vex_array_alloc(n_bytes: u64) -> *mut u8 {
+    if n_bytes == 0 {
+        // Layout::array proíbe size 0; retornamos sentinela não-null
+        // para distinguir de OOM. Codegen trata len==0 separadamente.
+        return core::ptr::NonNull::dangling().as_ptr();
+    }
+    let layout = match std::alloc::Layout::from_size_align(n_bytes as usize, 8) {
+        Ok(l) => l,
+        Err(_) => std::process::abort(),
+    };
+    let ptr = unsafe { std::alloc::alloc_zeroed(layout) };
+    if ptr.is_null() { std::process::abort(); }
+    ptr
+}
+
+/// Libera array previamente alocado por `vex_array_alloc`.
+///
+/// # Safety
+/// `ptr` deve ter sido retornado por `vex_array_alloc` com o mesmo
+/// `n_bytes`. Chamar com tamanho diferente é UB (mesmo que Rust GlobalAlloc).
+#[no_mangle]
+pub unsafe extern "C" fn vex_array_drop(ptr: *mut u8, n_bytes: u64) {
+    if ptr.is_null() || n_bytes == 0 { return; }
+    let layout = match std::alloc::Layout::from_size_align(n_bytes as usize, 8) {
+        Ok(l) => l,
+        Err(_) => return,
+    };
+    unsafe { std::alloc::dealloc(ptr, layout); }
+}
+
 // ── Matemática (built-ins) ──────────────────────────────────────────────
 
 #[no_mangle]

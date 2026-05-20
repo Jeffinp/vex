@@ -259,11 +259,15 @@ Mojo, Rust drop elaboration, Hylo).
 - [x] CLI: `vex check <arq> --emit=ownership`
 - [x] 7 testes unitários de ownership (Copy não tem drop, Struct tem,
       examples passam, pretty print, classificação de tipos)
-- [ ] **5b.2** Codegen consome `drop_points` → emite `vex_drop_*`
+- [x] **5b.2** Drop emission no codegen: `Statement::Drop` injetado
+      por `inject_drops` + codegen emite `vex_array_drop` para arrays
+      heap. Posicionamento conservador (at-return) em vez de ASAP por
+      causa de loops — ADR 0008.
 - [ ] **5b.3** Gen-ref tags em alocações (Vale-style, 8 bytes prefix)
 - [ ] **5b.4** Linear types opt-in (Austral, sintaxe `File!` ou similar)
 - [ ] **5b.5** Mensagens de erro de move com spans detalhados
 - [ ] **5b.6** Use-after-move com dataflow rigoroso (branches divergentes)
+- [ ] **5b.7** ASAP drops via dominator analysis (volta ASAP onde seguro)
 
 ## Ergonomia Python-like (transversal)
 
@@ -308,10 +312,12 @@ Mojo, Rust drop elaboration, Hylo).
       - `ponto.vex` → `5.0`
 
 Pendentes do MVP (pós-Fase-6):
-- [ ] Arrays primeira-classe (layout `{ ptr, len }`)
+- [x] **Arrays primeira-classe** (layout `{ ptr, len }`) — ADR 0008
 - [ ] Match decision-tree lowering
 - [ ] Cross-Windows testado E2E em CI
 - [ ] Auto-deref em method receivers
+- [ ] Bounds check em `xs[i]`
+- [ ] `push`/`pop` com realloc
 
 ---
 

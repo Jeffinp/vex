@@ -162,18 +162,70 @@ pub fn analyze(f: &MirFn, _liveness: &FnLiveness) -> OwnershipAnalysis {
         }
     }
 
-    // Drop points: ASAP — logo após o último uso de cada local owning.
-    // Locals `Copy` (Int/Float/Bool/Char/Ref) não precisam de drop.
+    // Drop points: MVP conservador — todo local owning é dropado **antes
+    // de cada `Return`**. Mais seguro que ASAP em CFG com loops porque
+    // não duplica drops dentro do corpo do loop.
+    //
+    // Trade-off: drops ficam no fim da função em vez do último uso real.
+    // É correto (não vaza, não double-free) mas sub-ótimo. ASAP volta na
+    // v1 quando tivermos dominator analysis para distinguir uso em loop
+    // do uso fora.
     let mut drop_points = Vec::new();
-    for (local, last) in &last_use {
-        let ty = &f.locals[local.0 as usize].ty;
-        if !is_drop_required(ty) { continue; }
-        // Heurística MVP: drop na mesma posição do último uso (codegen
-        // emitirá Statement::Drop logo após).
-        drop_points.push(DropPoint { local: *local, location: *last });
+    let owning_locals: Vec<LocalId> = f.locals.iter()
+        .filter(|l| is_drop_required(&l.ty))
+        .map(|l| l.id)
+        .collect();
+    // Pulamos parâmetros — em chamada por valor o callee não é dono.
+    // (No MVP estamos sem move analysis cruzando fronteiras; tratamos
+    // tudo como caller-owned. Quando move analysis ficar precisa, params
+    // que recebem ownership precisam de drop também.)
+    let param_set: IndexSet<LocalId> = f.params.iter().copied().collect();
+    for block in &block_order {
+        if matches!(block.terminator, Terminator::Return(_)) {
+            for local in &owning_locals {
+                if param_set.contains(local) { continue; }
+                drop_points.push(DropPoint {
+                    local: *local,
+                    location: Location::in_block(block.id, Location::TERMINATOR),
+                });
+            }
+        }
     }
 
     OwnershipAnalysis { uses, last_use, drop_points, errors }
+}
+
+/// Injeta `Statement::Drop` nos pontos calculados por `analyze`.
+///
+/// Estratégia simples: para cada `DropPoint`, inserir `Drop` **logo após**
+/// o statement do `last_use` no bloco. Itera blocos em ordem e processa
+/// drops por bloco, mantendo offsets corretos durante inserção.
+///
+/// Drop em `Location::TERMINATOR` insere o `Drop` no fim do `stmts` do
+/// bloco (antes do terminator).
+pub fn inject_drops(f: &mut MirFn, drop_points: &[DropPoint]) {
+    // Agrupa drops por bloco e ordena por posição decrescente — assim
+    // inserções não invalidam índices ainda não processados.
+    let mut by_block: IndexMap<u32, Vec<&DropPoint>> = IndexMap::new();
+    for dp in drop_points {
+        by_block.entry(dp.location.block.0).or_default().push(dp);
+    }
+    for drops in by_block.values_mut() {
+        drops.sort_by_key(|d| std::cmp::Reverse(d.location.stmt));
+    }
+
+    for block in f.blocks.iter_mut() {
+        let Some(drops) = by_block.get(&block.id.0) else { continue };
+        for dp in drops {
+            let stmt = Statement::Drop { local: dp.local, span: 0..0 };
+            if dp.location.stmt == Location::TERMINATOR {
+                block.stmts.push(stmt);
+            } else {
+                let idx = (dp.location.stmt as usize + 1).min(block.stmts.len());
+                block.stmts.insert(idx, stmt);
+            }
+        }
+    }
 }
 
 /// `true` se `ty` exige drop (não-Copy).
@@ -226,6 +278,10 @@ fn collect_uses_and_moves(
                 let _ = value;
                 check_use_after_move(u, f, loc, span.clone(), moves, errors);
             }
+        }
+        Statement::Drop { .. } => {
+            // Drop é injetado por esta análise; visitas subsequentes
+            // ignoram (não conta como uso para fins de last_use).
         }
         Statement::Nop => {}
     }

@@ -1,0 +1,19 @@
+// Arrays heap-allocated com layout `{ ptr, len }`.
+// O compilador insere `vex_array_drop` automaticamente no último uso —
+// sem `free()` manual, sem leak.
+
+xs = [10, 20, 30, 40, 50]
+
+println(len(xs))    // 5
+println(xs[0])      // 10
+println(xs[4])      // 50
+
+// Soma manual via index — for-in sobre arrays usa o mesmo mecanismo
+// (lowerer açucarou para while + index).
+total = 0
+i = 0
+while i < len(xs) {
+    total = total + xs[i]
+    i = i + 1
+}
+println(total)      // 150

@@ -686,8 +686,13 @@ impl<'a> FnLowerer<'a> {
                     .cloned()
                     .unwrap_or(Ty::Error)
             }
-            HirExpr::Index { .. } | HirExpr::Match { .. }
-            | HirExpr::Builtin { .. } => Ty::Error,
+            HirExpr::Index { obj, .. } => {
+                match self.infer_expr_type(obj) {
+                    Ty::Array(inner) => *inner,
+                    _ => Ty::Error,
+                }
+            }
+            HirExpr::Match { .. } | HirExpr::Builtin { .. } => Ty::Error,
         }
     }
 }
