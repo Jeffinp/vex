@@ -10,3 +10,8 @@ description = "High-level IR for Vex (post name-resolution)"
 vex-ast.workspace = true
 indexmap.workspace = true
 smol_str.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+vex-parser.workspace = true
+insta.workspace = true

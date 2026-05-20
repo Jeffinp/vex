@@ -852,8 +852,11 @@ name = "vex-hir"
 version = "0.1.0"
 dependencies = [
  "indexmap",
+ "insta",
  "smol_str",
+ "thiserror 1.0.69",
  "vex-ast",
+ "vex-parser",
 ]
 
 [[package]]

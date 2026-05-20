@@ -149,12 +149,33 @@ Decisão técnica fundamentada em `docs/design/0002-parser-pratt.md`.
 
 ## Fase 3 — Resolução de nomes + HIR (Dia 9-10)
 
-**Novo no roadmap v2.**
+**Status:** ✅ Concluída.
 
-- [ ] Atribuir `DefId` único a cada item
-- [ ] Resolver identificadores → `DefId`
-- [ ] Construir tabela de símbolos por escopo
-- [ ] AST → HIR lowering
+Crate `vex-hir` ganha dois módulos: `hir` (tipos) e `resolve`
+(algoritmo). Decisão arquitetural em `docs/design/0003-name-resolution.md`.
+
+- [x] `DefId(u32)` opaco com tabela `defs: Vec<Def>`
+- [x] `DefKind`: Fn / Struct / Const / Local / Param / SelfParam
+- [x] HIR completo: items, stmts, exprs, types, patterns
+- [x] Algoritmo de duas passagens (collect items → resolve bodies)
+- [x] Forward references (a chama b antes de b ser declarada)
+- [x] Pilha de escopos lexicais (`Vec<IndexMap<SmolStr, DefId>>`)
+- [x] Shadowing dentro de blocos
+- [x] Built-ins reconhecidos (print, println, len, sqrt, etc.) como
+      placeholder até a Fase 8 (stdlib)
+- [x] Acumula erros (não aborta no primeiro) para `vex check` reportar
+      tudo de uma vez
+- [x] 7 variantes de `ResolveError` com span: Unknown, Duplicate,
+      UnknownType, UnknownStruct, SelfOutsideMethod, ImplOnUnknownType,
+      InvalidAssignTarget
+- [x] Integrado no `vex-driver`: pipeline lex → parse → resolve
+- [x] Hints contextuais em cada erro renderizado via `miette`
+- [x] 14 testes unitários cobrindo: forward refs, shadowing, duplicate
+      detection, unknown vars/types/structs, self outside method,
+      invalid assign target, impl resolution, builtin recognition
+
+**Entregável:** `vex check examples/*.vex` reporta "parsing + resolução OK";
+programas com nomes não-declarados mostram diagnóstico colorido com hint.
 
 ---
 
