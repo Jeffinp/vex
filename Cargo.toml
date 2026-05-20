@@ -19,11 +19,16 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
+# Mantém sincronizado com rust-toolchain.toml (channel = "stable").
+# Atualizado para 1.95 (atual estável em 2026-05) por requisitos
+# do inkwell 0.9 (let-expressions estabilizadas tardiamente).
 rust-version = "1.95"
 authors = ["Jeff Almeida <jefersonreisalmeida8356@gmail.com>"]
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/jeffalmeida/vex"
-homepage = "https://vex-lang.org"
+# Licença MIT com cláusula de atribuição obrigatória — ver arquivo LICENSE.
+# Não é o dual MIT OR Apache-2.0 padrão do ecossistema Rust; é uma MIT
+# customizada e o SPDX precisa refletir isso.
+license-file = "LICENSE"
+repository = "https://github.com/Jeffinp/vex"
 
 [workspace.dependencies]
 # Codegen

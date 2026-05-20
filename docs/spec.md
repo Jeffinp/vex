@@ -17,7 +17,7 @@ Três princípios não-negociáveis:
    references* (estilo Vale) + *linear types* opcionais para recursos
    (estilo Austral). Sem GC.
 
-## Estado atual (Fase 3 concluída)
+## Estado atual (Fase 4 concluída)
 
 - ✅ **Lexer** completo: tokens, escapes, comentários aninhados, spans.
 - ✅ **Parser** completo: AST para fn, struct, impl, const, use; statements
@@ -27,8 +27,11 @@ Três princípios não-negociáveis:
 - ✅ **Name resolution + HIR**: identificadores resolvidos a `DefId`s,
   forward references, shadowing, detecção de nomes não-declarados e
   duplicatas, validação básica de `impl`/`self`/struct literals.
-  Erros acumulados + renderizados com `miette` + hints contextuais.
-- ⏳ Próximo: type checker (Fase 4).
+- ✅ **Type checker**: bidirecional simples com inferência local; valida
+  binops, unops, retornos, aridade/tipos de chamadas, campos de struct,
+  method dispatch, condições, indexação. Built-ins polimórficos via
+  `Ty::Any`. 15 variantes de erro com span + hint.
+- ⏳ Próximo: MIR + ownership (Fase 5).
 
 ## Sintaxe (informal, atualizada conforme parser evolui)
 
@@ -163,3 +166,4 @@ com a Fase 2.
 - `0001-architecture.md` — backend LLVM, ownership híbrido, tooling Dia 1
 - `0002-parser-pratt.md` — recursive descent + Pratt parsing
 - `0003-name-resolution.md` — HIR e algoritmo de duas passagens
+- `0004-typeck.md` — type checker bidirecional + built-ins poly

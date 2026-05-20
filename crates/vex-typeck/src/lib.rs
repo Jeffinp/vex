@@ -1,18 +1,17 @@
-//! Type checker + inferência local Hindley-Milner para Vex.
+//! Type checker para Vex (Fase 4).
 //!
-//! Implementação iniciada na Fase 3. Responsabilidades:
-//! - inferência de tipos em `let x = expr` (sem anotação)
-//! - validação de compatibilidade em operações binárias
-//! - checagem de retornos de função vs assinatura
-//! - validação de chamadas (aridade + tipos)
-//! - validação de acesso a campos de struct
-//! - integração com ownership/linear types (Fase 6)
+//! Estratégia: **bidirecional simples + inferência local**.
+//! - Top-down quando há tipo esperado (return, anotação de let, args de call).
+//! - Bottom-up para inferir tipo de expressões livres.
+//! - Sem unification: tipos primitivos batem por igualdade estrutural; não
+//!   há generics no MVP. Generics monomorfizados ficam para v1.2+.
+//!
+//! Não é Hindley-Milner completo. É suficiente para Vex v0.1 e
+//! drasticamente mais simples de implementar/manter.
 
-#[derive(Debug, thiserror::Error)]
-pub enum TypeError {
-    #[error("tipos incompatíveis: esperado `{expected}`, encontrado `{found}`")]
-    Mismatch { expected: String, found: String, span: std::ops::Range<usize> },
+mod ty;
+mod env;
+mod check;
 
-    #[error("variável `{name}` não declarada")]
-    Unknown { name: String, span: std::ops::Range<usize> },
-}
+pub use ty::Ty;
+pub use check::{check_module, TypeError};

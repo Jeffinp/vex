@@ -3,7 +3,7 @@ name = "vex-codegen"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
+license-file.workspace = true
 description = "LLVM IR code generation for Vex via inkwell"
 
 [dependencies]

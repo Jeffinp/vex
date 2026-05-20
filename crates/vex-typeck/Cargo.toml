@@ -3,7 +3,7 @@ name = "vex-typeck"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
+license-file.workspace = true
 description = "Type checking and inference for Vex"
 
 [dependencies]
@@ -13,3 +13,6 @@ vex-diagnostics.workspace = true
 indexmap.workspace = true
 smol_str.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+vex-parser.workspace = true

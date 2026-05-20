@@ -914,6 +914,7 @@ dependencies = [
  "vex-ast",
  "vex-diagnostics",
  "vex-hir",
+ "vex-parser",
 ]
 
 [[package]]

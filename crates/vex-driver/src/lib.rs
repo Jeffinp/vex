@@ -14,6 +14,7 @@ use std::path::PathBuf;
 
 use miette::{Diagnostic, NamedSource, Report, SourceSpan};
 use vex_hir::ResolveError;
+use vex_typeck::TypeError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DriverError {
@@ -75,9 +76,19 @@ pub fn compile(req: CompileRequest) -> Result<(), DriverError> {
         return Err(DriverError::Resolve);
     }
 
+    let type_errs = vex_typeck::check_module(&hir);
+    if !type_errs.is_empty() {
+        for e in &type_errs {
+            let (label, hint) = typeck_hint(e);
+            render(&path_str, &source, e.span().clone(), &e.to_string(), label, hint);
+        }
+        eprintln!("✗ {} — {} erro(s) de tipo", path_str, type_errs.len());
+        return Err(DriverError::Typeck);
+    }
+
     if req.check_only {
         eprintln!(
-            "✓ {} — parsing + resolução OK ({} item{}, {} defs)",
+            "✓ {} — lex + parse + resolve + typeck OK ({} item{}, {} defs)",
             path_str,
             hir.items.len(),
             if hir.items.len() == 1 { "" } else { "s" },
@@ -86,14 +97,13 @@ pub fn compile(req: CompileRequest) -> Result<(), DriverError> {
         return Ok(());
     }
 
-    // Fases ainda não implementadas
+    // Codegen ainda não implementado
     let _ = (req.output_path, req.target, req.opt_level);
     eprintln!(
-        "⚠  {} resolvido, mas type-check/codegen ainda não implementados \
-        (Fases 4-6).",
+        "⚠  {} type-check OK, mas codegen ainda não implementado (Fases 5-6).",
         path_str
     );
-    Err(DriverError::Typeck)
+    Err(DriverError::Codegen)
 }
 
 fn render(
@@ -114,6 +124,67 @@ fn render(
     };
     let report: Report = pretty.into();
     eprintln!("{report:?}");
+}
+
+fn typeck_hint(e: &TypeError) -> (&'static str, Option<&'static str>) {
+    match e {
+        TypeError::Mismatch { .. } => (
+            "tipo errado",
+            Some("ajuste a anotação de tipo ou converta o valor"),
+        ),
+        TypeError::BadBinOp { .. } => (
+            "operador incompatível",
+            Some("verifique se ambos os lados têm o mesmo tipo numérico/bool"),
+        ),
+        TypeError::BadUnaryOp { .. } => (
+            "operador unário inválido",
+            Some("`-` requer numérico, `!` requer bool"),
+        ),
+        TypeError::BadArity { .. } => (
+            "número errado de argumentos",
+            Some("ajuste a chamada para bater com a assinatura da função"),
+        ),
+        TypeError::NotCallable { .. } => (
+            "não é função",
+            Some("apenas funções, métodos e built-ins podem ser chamados"),
+        ),
+        TypeError::UnknownField { .. } => (
+            "campo inexistente",
+            Some("verifique a declaração da struct"),
+        ),
+        TypeError::UnknownMethod { .. } => (
+            "método inexistente",
+            Some("declare o método em um `impl` ou verifique o tipo do receptor"),
+        ),
+        TypeError::BadReturn { .. } => (
+            "retorno errado",
+            Some("o valor retornado precisa bater com o tipo declarado na fn"),
+        ),
+        TypeError::NonBoolCond { .. } => (
+            "não é bool",
+            Some("condições precisam ter tipo bool"),
+        ),
+        TypeError::NonIntIndex { .. } => (
+            "índice precisa ser int",
+            Some("use uma expressão `int` dentro de `[...]`"),
+        ),
+        TypeError::NotIndexable { .. } => (
+            "não é array",
+            Some("apenas arrays podem ser indexados com `[i]`"),
+        ),
+        TypeError::NoFields { .. } => (
+            "sem campos",
+            Some("apenas structs têm campos acessíveis com `.`"),
+        ),
+        TypeError::MissingField { .. } => (
+            "campo faltando",
+            Some("forneça todos os campos da struct no literal"),
+        ),
+        TypeError::ExtraField { .. } => (
+            "campo extra",
+            Some("remova campos que não existem na declaração da struct"),
+        ),
+    }
 }
 
 fn resolve_hint(e: &ResolveError) -> (&'static str, Option<&'static str>) {

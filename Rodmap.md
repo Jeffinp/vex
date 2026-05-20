@@ -181,14 +181,40 @@ programas com nomes não-declarados mostram diagnóstico colorido com hint.
 
 ## Fase 4 — Type checker (Dia 11-15)
 
-- [ ] Tipos primitivos + checagem de compatibilidade
-- [ ] Inferência local Hindley-Milner para `let` sem anotação
-- [ ] Validação de retornos vs assinatura
-- [ ] Validação de chamadas (aridade + tipos)
-- [ ] Validação de campos de struct
-- [ ] Erros tipados com `miette` + hints
+**Status:** ✅ Concluída.
 
-**Entregável:** Programas inválidos rejeitados com mensagens úteis.
+Estratégia: **bidirecional simples + inferência local** (não HM completo).
+Fundamentação em `docs/design/0004-typeck.md`.
+
+- [x] Crate `vex-typeck` com 3 módulos: `ty`, `env`, `check`
+- [x] `Ty` enum + `Ty::Any` (built-ins poly) + `Ty::Error` (propagação)
+- [x] `Env` pré-computa fn sigs, struct fields, methods (chave
+      `(struct_id, name)`)
+- [x] Inferência bottom-up para expressões livres
+- [x] Top-down quando há tipo esperado (anotações, retornos, args)
+- [x] Validação de:
+      - operadores binários por tipo (`+`/`-`/`*`/`/`/`%` numéricos,
+        `==`/`!=` igualdade estrutural, `<`/`>`/`<=`/`>=` ordem numérica,
+        `&&`/`||` bool)
+      - operadores unários (`-` numérico, `!` bool)
+      - retorno vs assinatura
+      - aridade + tipos de argumentos em chamadas
+      - acesso a campos (existência + tipo)
+      - struct literals (campos faltando/extras + tipos)
+      - method dispatch via `(struct_id, name)`
+      - condições de `if`/`while` (bool)
+      - índice de array (int) + indexação só de arrays
+      - elementos homogêneos em array literals
+      - atribuição (lhs e rhs compatíveis)
+- [x] Tabela de built-ins (`print`, `println`, `len`, `sqrt`, etc.)
+- [x] 15 variantes de `TypeError` com span + hints contextuais
+- [x] Integrado no driver: pipeline lex → parse → resolve → typeck
+- [x] 22 testes unitários cobrindo todas as variantes de erro +
+      exemplos válidos
+
+**Entregável:** `vex check examples/fib.vex` → "lex + parse + resolve +
+typeck OK"; programas com erros de tipo reportam mensagens coloridas
+com hints.
 
 ---
 

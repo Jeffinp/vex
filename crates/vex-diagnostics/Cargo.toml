@@ -3,7 +3,7 @@ name = "vex-diagnostics"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
+license-file.workspace = true
 description = "Diagnostic reporting for Vex (miette wrapper)"
 
 [dependencies]
