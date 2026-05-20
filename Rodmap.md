@@ -218,15 +218,38 @@ com hints.
 
 ---
 
-## Fase 5 — MIR + ownership baseline (Dia 16-20)
+## Fase 5a — MIR (CFG) (Dia 16-19)
 
-**Novo no roadmap v2.**
+**Status:** ✅ Concluída.
 
-- [ ] HIR → MIR lowering (CFG)
-- [ ] Generational references: tag de 8 bytes por alocação
-- [ ] Gen check inserido em derefs
-- [ ] ASAP destruction: análise de último uso
-- [ ] Validação básica (sem region analysis ainda — v1.1+)
+Crate `vex-mir` ganha implementação completa de lowering HIR → MIR.
+Decisão arquitetural em `docs/design/0005-mir-cfg.md`.
+
+- [x] Tipos: `LocalId`, `BlockId`, `MirFn`, `BasicBlock`, `Statement`,
+      `Rvalue`, `Operand`, `Place`, `Projection`, `Callee`, `Terminator`
+- [x] Lowering recursivo HIR → MIR via `FnLowerer`
+- [x] Operandos atômicos (sem cálculo embutido); `Rvalue` cobre BinaryOp,
+      UnaryOp, Call, Field, Index, Ref, StructInit, ArrayInit
+- [x] Control flow lowered para CFG: if (then/else/join), while
+      (head/body/exit com back edge), for (desugar `i = 0; while i < len`)
+- [x] `break`/`continue` via pilha `loop_targets`
+- [x] Pretty printer (`pretty_print_module`)
+- [x] CLI: `vex check <arq> --emit=mir` imprime o CFG textualmente
+- [x] Driver integrado: pipeline lex → parse → resolve → typeck → mir
+- [x] 10 testes unitários cobrindo empty, simple fn, let+return,
+      if branches, while back edge, fib, ponto+impl, pretty print,
+      call rvalue, struct init
+
+**Entregável:** MIR pronto para alimentar codegen na Fase 6.
+
+## Fase 5b — Ownership analysis (a fazer)
+
+**Status:** ⏳ Pendente. Split feito porque depende do MIR.
+
+- [ ] Last-use analysis sobre CFG (ASAP destruction)
+- [ ] Generational reference checks insertion
+- [ ] Linear type validation (resources marcados)
+- [ ] Move/use-after-move detection
 
 ---
 

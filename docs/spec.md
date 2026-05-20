@@ -17,21 +17,15 @@ Três princípios não-negociáveis:
    references* (estilo Vale) + *linear types* opcionais para recursos
    (estilo Austral). Sem GC.
 
-## Estado atual (Fase 4 concluída)
+## Estado atual (Fase 5a concluída)
 
-- ✅ **Lexer** completo: tokens, escapes, comentários aninhados, spans.
-- ✅ **Parser** completo: AST para fn, struct, impl, const, use; statements
-  let/return/if/else/while/for/break/continue; expressões com Pratt
-  parsing (precedência + associatividade); patterns para match;
-  references (`&T`, `&mut T`).
-- ✅ **Name resolution + HIR**: identificadores resolvidos a `DefId`s,
-  forward references, shadowing, detecção de nomes não-declarados e
-  duplicatas, validação básica de `impl`/`self`/struct literals.
-- ✅ **Type checker**: bidirecional simples com inferência local; valida
-  binops, unops, retornos, aridade/tipos de chamadas, campos de struct,
-  method dispatch, condições, indexação. Built-ins polimórficos via
-  `Ty::Any`. 15 variantes de erro com span + hint.
-- ⏳ Próximo: MIR + ownership (Fase 5).
+- ✅ **Lexer** completo.
+- ✅ **Parser** completo (recursive descent + Pratt).
+- ✅ **Name resolution + HIR**: duas passagens, forward refs, shadowing.
+- ✅ **Type checker**: bidirecional simples, 15 variantes de erro com hint.
+- ✅ **MIR (CFG)**: lowering HIR → MIR com basic blocks, terminators,
+  places, rvalues. CLI `vex check --emit=mir` imprime o CFG textualmente.
+- ⏳ Próximo: ownership analysis sobre MIR (5b) + codegen LLVM (6).
 
 ## Sintaxe (informal, atualizada conforme parser evolui)
 
@@ -167,3 +161,4 @@ com a Fase 2.
 - `0002-parser-pratt.md` — recursive descent + Pratt parsing
 - `0003-name-resolution.md` — HIR e algoritmo de duas passagens
 - `0004-typeck.md` — type checker bidirecional + built-ins poly
+- `0005-mir-cfg.md` — MIR como CFG; split em 5a (CFG) e 5b (ownership)

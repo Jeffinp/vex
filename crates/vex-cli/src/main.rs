@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use vex_driver::{CompileRequest, DriverError, compile};
+use vex_driver::{CompileRequest, DriverError, EmitKind, compile};
 
 #[derive(Parser)]
 #[command(name = "vex", version, about = "Vex programming language compiler")]
@@ -32,8 +32,15 @@ enum Commands {
         #[arg(long, short = 'O', default_value_t = 2)]
         opt_level: u8,
     },
-    /// Apenas faz lex + parse (e futuramente type-check), sem gerar código.
-    Check { file: PathBuf },
+    /// Roda pipeline até MIR sem gerar código. Reporta erros léxicos,
+    /// sintáticos, de resolução e de tipo. Use `--emit=mir` para imprimir
+    /// o CFG resultante.
+    Check {
+        file: PathBuf,
+        /// Imprime IR intermediária em vez do status. Único valor aceito hoje: `mir`.
+        #[arg(long)]
+        emit: Option<String>,
+    },
     /// Formata um arquivo .vex in-place.
     Fmt { file: PathBuf },
     /// REPL interativo.
@@ -53,6 +60,7 @@ fn main() -> ExitCode {
                 target: None,
                 opt_level,
                 check_only: false,
+                emit: None,
             })
         }
         Commands::Build { file, output, target, opt_level } => {
@@ -63,15 +71,27 @@ fn main() -> ExitCode {
                 target,
                 opt_level,
                 check_only: false,
+                emit: None,
             })
         }
-        Commands::Check { file } => compile(CompileRequest {
-            source_path: file.clone(),
-            output_path: file,
-            target: None,
-            opt_level: 0,
-            check_only: true,
-        }),
+        Commands::Check { file, emit } => {
+            let emit = match emit.as_deref() {
+                None => None,
+                Some("mir") => Some(EmitKind::Mir),
+                Some(other) => {
+                    eprintln!("--emit desconhecido: `{other}` (aceita: mir)");
+                    return ExitCode::FAILURE;
+                }
+            };
+            compile(CompileRequest {
+                source_path: file.clone(),
+                output_path: file,
+                target: None,
+                opt_level: 0,
+                check_only: true,
+                emit,
+            })
+        }
         Commands::Fmt { file } => match std::fs::read_to_string(&file) {
             Ok(src) => {
                 let out = vex_fmt::format(&src);

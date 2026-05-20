@@ -36,6 +36,14 @@ pub struct CompileRequest {
     pub target: Option<String>,
     pub opt_level: u8,
     pub check_only: bool,
+    /// Quando setado, imprime IR intermediária em vez de gerar binário.
+    pub emit: Option<EmitKind>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmitKind {
+    /// Pretty-print do MIR (CFG).
+    Mir,
 }
 
 /// Diagnóstico renderizável com `miette` (mensagem, fonte com nome, span).
@@ -86,13 +94,28 @@ pub fn compile(req: CompileRequest) -> Result<(), DriverError> {
         return Err(DriverError::Typeck);
     }
 
+    // Lowering HIR → MIR. Acontece sempre — barato e habilita --emit=mir.
+    let mir = match vex_mir::lower_module(&hir, &|_| None) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("erro de lowering: {e}");
+            return Err(DriverError::Codegen);
+        }
+    };
+
+    if let Some(EmitKind::Mir) = req.emit {
+        println!("{}", vex_mir::pretty_print_module(&mir));
+        return Ok(());
+    }
+
     if req.check_only {
         eprintln!(
-            "✓ {} — lex + parse + resolve + typeck OK ({} item{}, {} defs)",
+            "✓ {} — lex + parse + resolve + typeck + mir OK ({} item{}, {} defs, {} mir-fns)",
             path_str,
             hir.items.len(),
             if hir.items.len() == 1 { "" } else { "s" },
             hir.defs.len(),
+            mir.fns.len(),
         );
         return Ok(());
     }
@@ -100,7 +123,7 @@ pub fn compile(req: CompileRequest) -> Result<(), DriverError> {
     // Codegen ainda não implementado
     let _ = (req.output_path, req.target, req.opt_level);
     eprintln!(
-        "⚠  {} type-check OK, mas codegen ainda não implementado (Fases 5-6).",
+        "⚠  {} pipeline até MIR OK, mas codegen ainda não implementado (Fase 6).",
         path_str
     );
     Err(DriverError::Codegen)

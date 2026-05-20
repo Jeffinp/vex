@@ -13,6 +13,7 @@ vex-ast.workspace = true
 vex-hir.workspace = true
 vex-typeck.workspace = true
 vex-mir.workspace = true
+
 vex-codegen.workspace = true
 vex-diagnostics.workspace = true
 miette.workspace = true

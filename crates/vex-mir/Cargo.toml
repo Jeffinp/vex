@@ -4,9 +4,15 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
-description = "Mid-level IR for Vex (ownership/borrow lowering)"
+description = "Mid-level IR for Vex (CFG + ownership lowering)"
 
 [dependencies]
+vex-ast.workspace = true
 vex-hir.workspace = true
+vex-typeck.workspace = true
 indexmap.workspace = true
 smol_str.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+vex-parser.workspace = true
