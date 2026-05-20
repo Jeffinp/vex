@@ -290,11 +290,21 @@ Pendentes do MVP (pós-Fase-6):
 
 ## Fase 7 — CLI + formatter (Dia 27-30)
 
-- [ ] `vex run` / `build` / `check` / `fmt` / `repl` / `new`
-- [ ] Formatter opinativo (zero config) — `vex-fmt`
-- [ ] Scaffold de projeto (`vex new`)
+**Status:** ✅ Concluída (MVP).
 
-**Entregável:** Toolchain end-to-end usável.
+- [x] `vex run` — compila + executa + limpa binário
+- [x] `vex build` — produz binário no disco
+- [x] `vex check` — pipeline até MIR; `--emit=mir` imprime CFG
+- [x] `vex fmt <arquivo>` — formata in-place (idempotente)
+- [x] `vex new <nome>` — scaffold de projeto com `Vex.toml` + `src/main.vex`
+      + `.gitignore`
+- [x] Formatter opinativo (zero config): 4 espaços, K&R braces, sem
+      ponto-e-vírgulas, structs com fields em linhas separadas
+- [x] Formatter idempotente (testado em `examples/fib.vex`)
+- [x] Formatter preserva semântica (re-parse não falha)
+- [x] Formatter retorna fonte original em caso de erro de parse —
+      nunca quebra código que não entende
+- [ ] `vex repl` — pendente (Fase 9 junto com LSP)
 
 ---
 

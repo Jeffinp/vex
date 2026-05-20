@@ -848,6 +848,8 @@ dependencies = [
 name = "vex-fmt"
 version = "0.1.0"
 dependencies = [
+ "insta",
+ "smol_str",
  "vex-ast",
  "vex-parser",
 ]

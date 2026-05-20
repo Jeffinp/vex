@@ -114,12 +114,20 @@ fn main() -> ExitCode {
             Err(e) => Err(DriverError::Io(e)),
         },
         Commands::Repl => {
-            eprintln!("repl ainda em construção (Fase 7)");
+            eprintln!("repl ainda em construção (Fase 9)");
             Ok(())
         }
         Commands::New { name } => {
-            eprintln!("scaffold do projeto `{name}` ainda em construção (Fase 7)");
-            Ok(())
+            match scaffold_project(&name) {
+                Ok(()) => {
+                    eprintln!("✓ projeto `{name}` criado");
+                    return ExitCode::SUCCESS;
+                }
+                Err(e) => {
+                    eprintln!("erro ao criar projeto: {e}");
+                    return ExitCode::FAILURE;
+                }
+            }
         }
     };
 
@@ -133,4 +141,36 @@ fn main() -> ExitCode {
         // pelo driver via miette. Apenas saímos com código não-zero.
         Err(_) => ExitCode::FAILURE,
     }
+}
+
+/// Cria scaffold de projeto Vex em `<name>/`:
+/// - `Vex.toml` (manifesto — formato a evoluir na Fase 8)
+/// - `src/main.vex` (hello world)
+/// - `.gitignore` (binários gerados)
+fn scaffold_project(name: &str) -> std::io::Result<()> {
+    let root = std::path::PathBuf::from(name);
+    if root.exists() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            format!("diretório `{}` já existe", root.display()),
+        ));
+    }
+    std::fs::create_dir(&root)?;
+    std::fs::create_dir(root.join("src"))?;
+
+    std::fs::write(
+        root.join("Vex.toml"),
+        format!(
+            "[project]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"v0.1\"\n",
+        ),
+    )?;
+    std::fs::write(
+        root.join("src/main.vex"),
+        "fn main() -> void {\n    println(\"Hello from Vex!\")\n}\n",
+    )?;
+    std::fs::write(
+        root.join(".gitignore"),
+        "/out/\n*.o\n*.exe\n*.ll\n",
+    )?;
+    Ok(())
 }
