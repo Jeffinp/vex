@@ -153,6 +153,7 @@ struct Runtime<'ctx> {
     abs_i: FunctionValue<'ctx>,
     array_alloc: FunctionValue<'ctx>,
     array_drop: FunctionValue<'ctx>,
+    bounds_panic: FunctionValue<'ctx>,
 }
 
 impl<'ctx> Runtime<'ctx> {
@@ -181,6 +182,24 @@ impl<'ctx> Runtime<'ctx> {
             abs_i:        decl("vex_abs_i64",      i64_t.fn_type(&[i64_t.into()], false)),
             array_alloc:  decl("vex_array_alloc",  i8ptr.fn_type(&[i64_t.into()], false)),
             array_drop:   decl("vex_array_drop",   void.fn_type(&[i8ptr.into(), i64_t.into()], false)),
+            bounds_panic: {
+                // void in Vex; mas runtime declara como `-> !` no Rust.
+                // Em LLVM declaramos como `void(i64, i64)` + marcamos
+                // `noreturn` para hint ao otimizador.
+                let f = module.add_function(
+                    "vex_bounds_panic",
+                    void.fn_type(&[i64_t.into(), i64_t.into()], false),
+                    Some(inkwell::module::Linkage::External),
+                );
+                f.add_attribute(
+                    inkwell::attributes::AttributeLoc::Function,
+                    ctx.create_enum_attribute(
+                        inkwell::attributes::Attribute::get_named_enum_kind_id("noreturn"),
+                        0,
+                    ),
+                );
+                f
+            },
         }
     }
 }
@@ -645,6 +664,10 @@ impl<'ctx, 'a> Codegen<'ctx, 'a> {
                     .build_extract_value(fat, 0, "arr_ptr")
                     .map_err(builder_err)?
                     .into_pointer_value();
+                let len_v = self.builder
+                    .build_extract_value(fat, 1, "arr_len")
+                    .map_err(builder_err)?
+                    .into_int_value();
 
                 // Elem type via tipo do local `obj`.
                 let elem_ty = match &f.locals[obj.0 as usize].ty {
@@ -654,6 +677,12 @@ impl<'ctx, 'a> Codegen<'ctx, 'a> {
                 let elem_llty = self.llvm_type(&elem_ty);
 
                 let idx_v = self.load_local(locals, f, *idx)?.into_int_value();
+
+                // Bounds check: panic se `(unsigned)idx >= len`. Comparar
+                // como unsigned cobre `idx < 0` em uma única instrução
+                // (cast pra u64 vira valor >= 2^63 > qualquer len válido).
+                self.emit_bounds_check(idx_v, len_v, f)?;
+
                 let slot = unsafe {
                     self.builder.build_gep(elem_llty, raw_ptr, &[idx_v], "arr_idx")
                 }
@@ -663,6 +692,44 @@ impl<'ctx, 'a> Codegen<'ctx, 'a> {
                     .map_err(builder_err)
             }
         }
+    }
+
+    /// Emite `if idx as u64 >= len as u64 { panic; }` antes do GEP de
+    /// um Index. Trabalha como unsigned para cobrir o caso `idx < 0` na
+    /// mesma comparação — clássico truque que rustc usa.
+    fn emit_bounds_check(
+        &self,
+        idx: inkwell::values::IntValue<'ctx>,
+        len: inkwell::values::IntValue<'ctx>,
+        f: &MirFn,
+    ) -> Result<(), CodegenError> {
+        // Função LLVM atual obtida indiretamente via builder.position.
+        let cur_block = self.builder.get_insert_block()
+            .ok_or_else(|| CodegenError::Llvm("builder sem bloco atual".into()))?;
+        let func = cur_block.get_parent()
+            .ok_or_else(|| CodegenError::Llvm("bloco sem fn-pai".into()))?;
+        let _ = f; // só para suprimir unused — pode virar log futuro.
+
+        let panic_blk = self.ctx.append_basic_block(func, "bounds_panic");
+        let ok_blk = self.ctx.append_basic_block(func, "bounds_ok");
+
+        let oob = self.builder
+            .build_int_compare(IntPredicate::UGE, idx, len, "oob")
+            .map_err(builder_err)?;
+        self.builder
+            .build_conditional_branch(oob, panic_blk, ok_blk)
+            .map_err(builder_err)?;
+
+        // panic block: chama runtime + unreachable (a fn é noreturn).
+        self.builder.position_at_end(panic_blk);
+        self.builder
+            .build_call(self.runtime.bounds_panic, &[idx.into(), len.into()], "")
+            .map_err(builder_err)?;
+        self.builder.build_unreachable().map_err(builder_err)?;
+
+        // continua no ok_blk.
+        self.builder.position_at_end(ok_blk);
+        Ok(())
     }
 
     fn compile_binop(

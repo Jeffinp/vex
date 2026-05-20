@@ -313,10 +313,11 @@ Mojo, Rust drop elaboration, Hylo).
 
 Pendentes do MVP (pós-Fase-6):
 - [x] **Arrays primeira-classe** (layout `{ ptr, len }`) — ADR 0008
+- [x] **Bounds check** em `xs[i]` via `vex_bounds_panic` (unsigned
+      compare cobre `idx < 0` na mesma instrução)
 - [ ] Match decision-tree lowering
 - [ ] Cross-Windows testado E2E em CI
 - [ ] Auto-deref em method receivers
-- [ ] Bounds check em `xs[i]`
 - [ ] `push`/`pop` com realloc
 
 ---

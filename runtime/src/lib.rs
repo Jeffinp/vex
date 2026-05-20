@@ -101,6 +101,16 @@ pub extern "C" fn vex_array_alloc(n_bytes: u64) -> *mut u8 {
     ptr
 }
 
+/// Aborta o programa com mensagem de erro de bounds. Chamado pelo
+/// codegen quando `xs[i]` com `i < 0 || i >= len`. Tem `#[cold]` para
+/// hint ao otimizador — o caminho não-erro é o hot path.
+#[cold]
+#[no_mangle]
+pub extern "C" fn vex_bounds_panic(idx: i64, len: i64) -> ! {
+    eprintln!("vex panic: index {idx} out of bounds for array of length {len}");
+    std::process::abort();
+}
+
 /// Libera array previamente alocado por `vex_array_alloc`.
 ///
 /// # Safety
