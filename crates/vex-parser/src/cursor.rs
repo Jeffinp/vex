@@ -32,8 +32,8 @@ impl Cursor {
     }
 
     /// Olha N tokens à frente. Útil para distinguir construções com
-    /// prefixo ambíguo (ex.: `Ident {` é struct literal? bloco?).
-    #[allow(dead_code)]
+    /// prefixo ambíguo (ex.: `Ident {` é struct literal? bloco?) e
+    /// para diferenciar item vs statement no top-level (script mode).
     pub fn peek_n(&self, n: usize) -> Result<Option<&SpannedToken>, ParseError> {
         match self.tokens.get(self.pos + n) {
             None => Ok(None),

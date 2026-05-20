@@ -46,6 +46,8 @@ pub enum EmitKind {
     Mir,
     /// Anotações de liveness sobre o MIR.
     Liveness,
+    /// Análise de ownership (last-use, drop points, use-after-move).
+    Ownership,
 }
 
 /// Diagnóstico renderizável com `miette` (mensagem, fonte com nome, span).
@@ -121,6 +123,21 @@ pub fn compile(req: CompileRequest) -> Result<(), DriverError> {
         for f in &mir.fns {
             let liv = vex_mir::analyze_liveness(f);
             println!("{}", vex_mir::pretty_print_liveness(f, &liv));
+        }
+        return Ok(());
+    }
+    if let Some(EmitKind::Ownership) = req.emit {
+        let mut had_errors = false;
+        for f in &mir.fns {
+            let liv = vex_mir::analyze_liveness(f);
+            let own = vex_mir::analyze_ownership(f, &liv);
+            if !own.errors.is_empty() {
+                had_errors = true;
+            }
+            println!("{}", vex_mir::pretty_print_ownership(f, &own));
+        }
+        if had_errors {
+            return Err(DriverError::Resolve);
         }
         return Ok(());
     }

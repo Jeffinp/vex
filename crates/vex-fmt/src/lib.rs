@@ -95,7 +95,8 @@ impl Printer {
     fn fn_decl(&mut self, f: &FnDecl) {
         if f.is_pub      { self.write("pub "); }
         if f.is_comptime { self.write("comptime "); }
-        write!(self, "fn {}(", f.name);
+        // Canonical: `def` (Python-friendly). Lexer aceita `fn` como alias.
+        write!(self, "def {}(", f.name);
         for (i, p) in f.params.iter().enumerate() {
             if i > 0 { self.write(", "); }
             self.param(p);
@@ -121,7 +122,8 @@ impl Printer {
 
     fn struct_decl(&mut self, s: &StructDecl) {
         if s.is_pub { self.write("pub "); }
-        write!(self, "struct {} {{", s.name);
+        // Canonical: `class` (Python-friendly). Lexer aceita `struct` como alias.
+        write!(self, "class {} {{", s.name);
         self.newline();
         self.indented(|p| {
             for (n, t, _) in &s.fields {
@@ -400,7 +402,8 @@ mod tests {
     fn fmt_hello() {
         let src = "fn main() -> void {println(\"Hello, Vex!\")}";
         let out = roundtrip(src);
-        assert!(out.contains("fn main()"));
+        // Canonical Python-friendly: `def` em vez de `fn`.
+        assert!(out.contains("def main()"), "got: {out}");
         assert!(out.contains("println"));
     }
 
@@ -408,7 +411,7 @@ mod tests {
     fn fmt_normalizes_whitespace() {
         let src = "fn   f(  x:int  )->int{return  x  +  1}";
         let out = roundtrip(src);
-        assert!(out.contains("fn f(x: int) -> int"));
+        assert!(out.contains("def f(x: int) -> int"), "got: {out}");
         assert!(out.contains("return x + 1"));
     }
 
@@ -416,7 +419,8 @@ mod tests {
     fn fmt_struct_block() {
         let src = "struct P { x: int, y: float }";
         let out = roundtrip(src);
-        assert!(out.contains("struct P {"));
+        // Canonical Python-friendly: `class` em vez de `struct`.
+        assert!(out.contains("class P {"), "got: {out}");
         assert!(out.contains("    x: int,"));
         assert!(out.contains("    y: float,"));
     }

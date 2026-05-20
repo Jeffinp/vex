@@ -15,23 +15,23 @@ Module {
                             Call {
                                 callee: Ident(
                                     "println",
-                                    24..31,
+                                    102..109,
                                 ),
                                 args: [
                                     Str(
                                         "Hello, Vex!",
-                                        32..45,
+                                        110..123,
                                     ),
                                 ],
-                                span: 24..46,
+                                span: 102..124,
                             },
                         ),
                     ],
-                    span: 18..48,
+                    span: 102..125,
                 },
                 is_pub: false,
                 is_comptime: false,
-                span: 0..48,
+                span: 102..125,
             },
         ),
     ],

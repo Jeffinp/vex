@@ -1,3 +1,3 @@
-fn main() -> void {
-    println("Hello, Vex!")
-}
+// Top-level statements são executados como `main()` implícito.
+// Igual Python — sem cerimônia.
+println("Hello, Vex!")

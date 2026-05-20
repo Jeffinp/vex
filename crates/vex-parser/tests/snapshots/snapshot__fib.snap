@@ -12,7 +12,7 @@ Module {
                         name: "n",
                         ty: Int,
                         mutable: false,
-                        span: 7..8,
+                        span: 132..133,
                     },
                 ],
                 ret_type: Int,
@@ -23,13 +23,13 @@ Module {
                                 op: Lte,
                                 left: Ident(
                                     "n",
-                                    31..32,
+                                    156..157,
                                 ),
                                 right: Int(
                                     1,
-                                    36..37,
+                                    161..162,
                                 ),
-                                span: 31..37,
+                                span: 156..162,
                             },
                             then_body: Block {
                                 stmts: [
@@ -37,16 +37,16 @@ Module {
                                         Some(
                                             Ident(
                                                 "n",
-                                                55..56,
+                                                180..181,
                                             ),
                                         ),
-                                        48..56,
+                                        173..181,
                                     ),
                                 ],
-                                span: 38..62,
+                                span: 163..187,
                             },
                             else_body: None,
-                            span: 28..62,
+                            span: 153..187,
                         },
                         Return(
                             Some(
@@ -55,56 +55,56 @@ Module {
                                     left: Call {
                                         callee: Ident(
                                             "fib",
-                                            74..77,
+                                            199..202,
                                         ),
                                         args: [
                                             BinOp {
                                                 op: Sub,
                                                 left: Ident(
                                                     "n",
-                                                    78..79,
+                                                    203..204,
                                                 ),
                                                 right: Int(
                                                     1,
-                                                    82..83,
+                                                    207..208,
                                                 ),
-                                                span: 78..83,
+                                                span: 203..208,
                                             },
                                         ],
-                                        span: 74..84,
+                                        span: 199..209,
                                     },
                                     right: Call {
                                         callee: Ident(
                                             "fib",
-                                            87..90,
+                                            212..215,
                                         ),
                                         args: [
                                             BinOp {
                                                 op: Sub,
                                                 left: Ident(
                                                     "n",
-                                                    91..92,
+                                                    216..217,
                                                 ),
                                                 right: Int(
                                                     2,
-                                                    95..96,
+                                                    220..221,
                                                 ),
-                                                span: 91..96,
+                                                span: 216..221,
                                             },
                                         ],
-                                        span: 87..97,
+                                        span: 212..222,
                                     },
-                                    span: 74..97,
+                                    span: 199..222,
                                 },
                             ),
-                            67..97,
+                            192..222,
                         ),
                     ],
-                    span: 22..99,
+                    span: 147..224,
                 },
                 is_pub: false,
                 is_comptime: false,
-                span: 0..99,
+                span: 124..224,
             },
         ),
         Fn(
@@ -114,48 +114,49 @@ Module {
                 ret_type: Void,
                 body: Block {
                     stmts: [
-                        Let {
-                            name: "result",
-                            mutable: false,
-                            type_ann: Some(
-                                Int,
-                            ),
-                            value: Call {
-                                callee: Ident(
-                                    "fib",
-                                    143..146,
+                        Expr(
+                            Assign {
+                                target: Ident(
+                                    "result",
+                                    226..232,
                                 ),
-                                args: [
-                                    Int(
-                                        10,
-                                        147..149,
+                                value: Call {
+                                    callee: Ident(
+                                        "fib",
+                                        235..238,
                                     ),
-                                ],
-                                span: 143..150,
+                                    args: [
+                                        Int(
+                                            10,
+                                            239..241,
+                                        ),
+                                    ],
+                                    span: 235..242,
+                                },
+                                span: 226..242,
                             },
-                            span: 125..150,
-                        },
+                        ),
                         Expr(
                             Call {
                                 callee: Ident(
                                     "println",
-                                    155..162,
+                                    243..250,
                                 ),
                                 args: [
                                     Ident(
                                         "result",
-                                        163..169,
+                                        251..257,
                                     ),
                                 ],
-                                span: 155..170,
+                                span: 243..258,
                             },
                         ),
                     ],
-                    span: 119..172,
+                    span: 226..259,
                 },
                 is_pub: false,
                 is_comptime: false,
-                span: 101..172,
+                span: 226..259,
             },
         ),
     ],

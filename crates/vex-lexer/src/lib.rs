@@ -77,7 +77,10 @@ pub enum Token {
     // ── Keywords ───────────────────────────────────────────────────
     #[token("let")]      Let,
     #[token("const")]    Const,
-    #[token("fn")]       Fn,
+    // `fn` é a forma tradicional; `def` é alias Python-friendly.
+    // Parser trata ambos identicamente.
+    #[token("fn")]
+    #[token("def")]      Fn,
     #[token("return")]   Return,
     #[token("if")]       If,
     #[token("else")]     Else,
@@ -86,7 +89,9 @@ pub enum Token {
     #[token("in")]       In,
     #[token("break")]    Break,
     #[token("continue")] Continue,
-    #[token("struct")]   Struct,
+    // `struct` clássico; `class` alias Python-friendly.
+    #[token("struct")]
+    #[token("class")]    Struct,
     #[token("enum")]     Enum,
     #[token("impl")]     Impl,
     #[token("trait")]    Trait,

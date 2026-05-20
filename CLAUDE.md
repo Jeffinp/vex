@@ -54,12 +54,19 @@ tools/setup-llvm-mingw.sh  # baixa toolchain cross-Windows
 
 ## Status por fase
 
-Veja `Rodmap.md` para detalhes. Fases concluídas: 0, 1, 2, 3, 4, 5a, 6.
-Pendentes: 5b (ownership), 7 (formatter), 8 (stdlib), 9 (LSP),
-10 (integration/bench).
+Veja `Rodmap.md` para detalhes. Fases concluídas: 0, 1, 2, 3, 4, 5a, 6, 7.
+5b: infra analítica pronta (last-use refinado, drop points,
+use-after-move) — emissão real de drops/gen-refs/linear types nas
+sub-fases 5b.2-5b.6. Pendentes: 8 (stdlib), 9 (LSP), 10 (bench).
 
-MVP end-to-end **funciona**: `vex run examples/{hello,fib,ponto}.vex`
-gera binário nativo e executa.
+MVP end-to-end **funciona Python-like**: `vex run examples/hello.vex`
+imprime "Hello, Vex!". Hello é uma única linha `println("Hello, Vex!")`.
+
+## Princípio guia: ergonomia Python + segurança Rust + velocidade C++
+
+Vex prioriza ergonomia Python em sintaxe (script mode, `let` opcional,
+`def`/`class` aliases) **sem comprometer safety** (typeck rigoroso,
+ownership analysis sobre CFG). Performance vem de LLVM 17 + zero GC.
 
 ## Comandos essenciais
 

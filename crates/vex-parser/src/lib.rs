@@ -28,19 +28,114 @@ mod ty;
 
 pub use error::{ParseError, Span};
 
-use vex_ast::Module;
-use vex_lexer::tokenize;
+use vex_ast::{Block, FnDecl, Item, Module, Stmt, Type};
+use vex_lexer::{Token, tokenize};
 
 use cursor::Cursor;
 
+/// Parser do top-level com **script mode** — princípio de design da Vex:
+/// arquivos podem misturar items (fn, struct, impl, const, use) com
+/// statements/exprs no topo. Statements top-level viram corpo de um
+/// `main()` sintético — assim `println("hi")` no topo é um programa
+/// válido, igual Python.
+///
+/// Conflito: se o arquivo declara `fn main()` **e** tem statements no
+/// topo, é erro — ambíguo qual deveria executar.
 pub fn parse(source: &str) -> Result<Module, ParseError> {
     let tokens = tokenize(source);
     let mut cur = Cursor::new(tokens, source.len());
     let mut items = Vec::new();
+    let mut script_stmts: Vec<Stmt> = Vec::new();
+    let mut script_span_start: Option<usize> = None;
+    let mut script_span_end: usize = 0;
+
     while !cur.is_eof() {
-        items.push(item::parse_item(&mut cur)?);
+        if peek_is_item(&cur)? {
+            items.push(item::parse_item(&mut cur)?);
+        } else {
+            let stmt = stmt::parse_stmt(&mut cur)?;
+            let _ = cur.eat(&Token::Semi)?; // `;` opcional como dentro de blocos
+            if script_span_start.is_none() {
+                script_span_start = Some(stmt_start(&stmt));
+            }
+            script_span_end = stmt_end(&stmt);
+            script_stmts.push(stmt);
+        }
     }
+
+    if !script_stmts.is_empty() {
+        // Conflito: já existe `fn main` declarada.
+        if let Some(existing) = items.iter().find_map(|i| match i {
+            Item::Fn(f) if f.name == "main" => Some(f.span.clone()),
+            _ => None,
+        }) {
+            return Err(ParseError::Unexpected {
+                expected: "ou `fn main()` explícita, ou statements top-level (script mode)".into(),
+                found: "ambos no mesmo arquivo".into(),
+                span: existing,
+            });
+        }
+
+        let span = script_span_start.unwrap_or(0)..script_span_end.max(source.len());
+        let body = Block { stmts: script_stmts, span: span.clone() };
+        items.push(Item::Fn(FnDecl {
+            name: "main".into(),
+            params: Vec::new(),
+            ret_type: Type::Void,
+            body,
+            is_pub: false,
+            is_comptime: false,
+            span,
+        }));
+    }
+
     Ok(Module { items })
+}
+
+/// Heurística: o próximo token (pulando modificadores `pub`/`comptime`)
+/// inicia um item de top-level?
+fn peek_is_item(cur: &Cursor) -> Result<bool, ParseError> {
+    let mut offset = 0;
+    loop {
+        match cur.peek_n(offset)?.map(|st| &st.token) {
+            Some(Token::Pub) | Some(Token::Comptime) => offset += 1,
+            Some(Token::Fn)
+            | Some(Token::Struct)
+            | Some(Token::Impl)
+            | Some(Token::Const)
+            | Some(Token::Use)
+            | Some(Token::Mod)
+            | Some(Token::Trait)
+            | Some(Token::Enum) => return Ok(true),
+            _ => return Ok(false),
+        }
+    }
+}
+
+fn stmt_start(s: &Stmt) -> usize {
+    match s {
+        Stmt::Let { span, .. }
+        | Stmt::Return(_, span)
+        | Stmt::If { span, .. }
+        | Stmt::While { span, .. }
+        | Stmt::For { span, .. }
+        | Stmt::Break(span)
+        | Stmt::Continue(span) => span.start,
+        Stmt::Expr(e) => expr::expr_span(e).start,
+    }
+}
+
+fn stmt_end(s: &Stmt) -> usize {
+    match s {
+        Stmt::Let { span, .. }
+        | Stmt::Return(_, span)
+        | Stmt::If { span, .. }
+        | Stmt::While { span, .. }
+        | Stmt::For { span, .. }
+        | Stmt::Break(span)
+        | Stmt::Continue(span) => span.end,
+        Stmt::Expr(e) => expr::expr_span(e).end,
+    }
 }
 
 #[cfg(test)]

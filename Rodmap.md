@@ -244,18 +244,39 @@ Decisão arquitetural em `docs/design/0005-mir-cfg.md`.
 
 ## Fase 5b — Ownership analysis
 
-**Status:** 🚧 Em curso (liveness implementado).
+**Status:** 🚧 Infraestrutura analítica pronta (próximas sub-fases
+emitem drops/gen-refs/linear types reais).
 
-- [x] **Liveness analysis** sobre CFG via dataflow backward
-      (use/def/live_in/live_out + last_use por local)
-- [x] CLI: `vex check <arq> --emit=liveness` imprime análise
-- [x] 4 testes unitários (simple return, if branches merge, dead local,
-      pretty print)
-- [ ] ASAP destruction: codegen consome `last_use` para emitir drops
-- [ ] Gen-ref tag em alocações (Vale-style)
-- [ ] Gen-ref check insertion em derefs (chama `vex_gen_check`)
-- [ ] Linear type validation (resources marcados)
-- [ ] Use-after-move detection sobre o CFG
+Decisão técnica em `docs/design/0007-ownership-and-python-ergonomics.md`,
+fundamentada em pesquisa do estado da arte 2024-2026 (Vale, Austral,
+Mojo, Rust drop elaboration, Hylo).
+
+- [x] **Liveness analysis** (CFG dataflow backward)
+- [x] **Last-use refinado** (granularidade de statement, não bloco)
+- [x] **Drop points** computados para tipos owning (Str, Struct, Array)
+- [x] **Use-after-move** detection conservadora
+- [x] **`is_drop_required(Ty)`** classifica Copy vs Owning
+- [x] CLI: `vex check <arq> --emit=ownership`
+- [x] 7 testes unitários de ownership (Copy não tem drop, Struct tem,
+      examples passam, pretty print, classificação de tipos)
+- [ ] **5b.2** Codegen consome `drop_points` → emite `vex_drop_*`
+- [ ] **5b.3** Gen-ref tags em alocações (Vale-style, 8 bytes prefix)
+- [ ] **5b.4** Linear types opt-in (Austral, sintaxe `File!` ou similar)
+- [ ] **5b.5** Mensagens de erro de move com spans detalhados
+- [ ] **5b.6** Use-after-move com dataflow rigoroso (branches divergentes)
+
+## Ergonomia Python-like (transversal)
+
+**Status:** ✅ v1 implementada.
+
+- [x] **Script mode**: top-level stmts viram `main()` implícito
+      (`println("hi")` em arquivo = programa completo)
+- [x] **`let` opcional**: primeira atribuição declara via resolver
+      auto-declare (mutável por padrão, igual Python)
+- [x] **`def` alias** para `fn` (Python-friendly)
+- [x] **`class` alias** para `struct` (Python-friendly)
+- [x] Formatter emite forma canonical Python-friendly
+- [x] Examples reescritos: `hello.vex`, `fib.vex`, `ponto.vex`
 
 ---
 

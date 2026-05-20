@@ -321,8 +321,33 @@ impl Resolver {
             }
             ast::Stmt::Break(s) => HirStmt::Break(s.clone()),
             ast::Stmt::Continue(s) => HirStmt::Continue(s.clone()),
-            ast::Stmt::Expr(e) => HirStmt::Expr(self.resolve_expr(e)),
+            ast::Stmt::Expr(e) => self.resolve_expr_stmt(e),
         }
+    }
+
+    /// Resolve uma expr-statement. Caso especial: `nome = expr` onde
+    /// `nome` ainda não existe no escopo vira **declaração implícita**
+    /// (estilo Python — sem `let`). Mantém ergonomia sem perder safety:
+    /// a declaração é local ao escopo e segue as mesmas regras de tipos.
+    fn resolve_expr_stmt(&mut self, e: &ast::Expr) -> HirStmt {
+        if let ast::Expr::Assign { target, value, span } = e {
+            if let ast::Expr::Ident(name, name_span) = target.as_ref() {
+                if self.lookup(name).is_none() {
+                    // Auto-declare: `nome = valor` em primeiro uso.
+                    let value_hir = self.resolve_expr(value);
+                    let id = self.declare_local(name.clone(), DefKind::Local, name_span.clone());
+                    return HirStmt::Let {
+                        id,
+                        name: name.clone(),
+                        mutable: true, // auto-declares são mut por default
+                        type_ann: None,
+                        value: value_hir,
+                        span: span.clone(),
+                    };
+                }
+            }
+        }
+        HirStmt::Expr(self.resolve_expr(e))
     }
 
     fn resolve_expr(&mut self, e: &ast::Expr) -> HirExpr {

@@ -16,8 +16,13 @@ mod mir;
 mod lower;
 mod pretty;
 mod liveness;
+mod ownership;
 
 pub use mir::*;
 pub use lower::{lower_module, LowerError};
 pub use pretty::pretty_print_module;
 pub use liveness::{analyze as analyze_liveness, BlockLiveness, FnLiveness, pretty_print as pretty_print_liveness};
+pub use ownership::{
+    analyze as analyze_ownership, is_drop_required, pretty_print as pretty_print_ownership,
+    DropPoint, Location, OwnershipAnalysis, OwnershipError,
+};

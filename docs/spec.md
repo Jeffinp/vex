@@ -17,32 +17,44 @@ Três princípios não-negociáveis:
    references* (estilo Vale) + *linear types* opcionais para recursos
    (estilo Austral). Sem GC.
 
-## Estado atual (Fase 6 concluída — MVP end-to-end)
+## Estado atual (Fase 7 done + 5b infra + ergonomia Python)
 
-- ✅ **Lexer** completo.
-- ✅ **Parser** completo (recursive descent + Pratt).
-- ✅ **Name resolution + HIR**.
+- ✅ **Lexer** completo, aceita `def`/`class` como aliases de `fn`/`struct`.
+- ✅ **Parser** com **script mode**: top-level stmts viram `main()` implícito.
+- ✅ **Name resolution**: primeira atribuição declara automaticamente
+  (auto-`let`, Python-style).
 - ✅ **Type checker** bidirecional.
-- ✅ **MIR (CFG)** com basic blocks e terminators.
-- ✅ **Codegen LLVM** via inkwell 0.9 + LLVM 17: gera `.o` + linka com
-  runtime estático. `vex run` compila e executa.
-- ✅ **3 exemplos rodam:** `hello`, `fib`, `ponto`.
-- ⏳ Próximo: ownership analysis (5b), arrays primeira-classe,
-  match decision-tree, stdlib formal (Fase 7+).
+- ✅ **MIR (CFG)** com liveness e **ownership analysis** (last-use
+  refinado por statement, drop points, use-after-move conservador).
+- ✅ **Codegen LLVM** via inkwell 0.9 + LLVM 17: `vex run` produz binário.
+- ✅ **Formatter** opinativo emite forma canonical Python-friendly.
+- ✅ **3 exemplos rodam Python-like:** `hello`, `fib`, `ponto`.
+- ⏳ Próximo: drop emission no codegen, gen-ref tags (Vale), linear
+  types (Austral), methods dentro de `class`.
 
 ## Sintaxe (informal, atualizada conforme parser evolui)
+
+### Hello, Vex! (script mode)
+
+```vex
+println("Hello, Vex!")
+```
+
+Top-level statements são executados em ordem como corpo de um `main()`
+implícito. Sem necessidade de declarar `fn main()`. Idêntico em
+ergonomia ao Python.
 
 ### Declarações
 
 ```vex
-// função
-fn nome(p1: T1, p2: T2) -> T3 { ... }
-pub fn nome(...) { ... }              // visível externamente
-comptime fn nome(...) { ... }         // executada em tempo de compilação
+// função — `def` é canonical (Python), `fn` é alias aceito
+def nome(p1: T1, p2: T2) -> T3 { ... }
+pub def nome(...) { ... }              // visível externamente
+comptime def nome(...) { ... }         // executada em tempo de compilação
 
-// struct
-struct Nome { field: T, ... }
-pub struct Nome { ... }
+// dados — `class` é canonical (Python), `struct` é alias aceito
+class Nome { field: T, ... }
+pub class Nome { ... }
 
 // impl
 impl Nome {
@@ -62,10 +74,19 @@ use std::math
 ### Variáveis
 
 ```vex
-let x = 42                  // imutável, tipo inferido
-let mut x: int = 0          // mutável, tipo anotado
-let y: float = 3.14         // imutável, tipo anotado
+// Auto-declaração (Python-style): primeira atribuição declara.
+// Tipo inferido, mutável por padrão.
+x = 42
+x = x + 1                    // assignment subsequente atualiza
+
+// Formas explícitas continuam aceitas:
+let y = 3.14                 // imutável, tipo inferido
+let mut z: int = 0           // mutável, tipo anotado
+let w: float = 2.5           // imutável, tipo anotado
 ```
+
+Trade-off do auto-declare: typos viram declarações silenciosas
+(igual Python). Análise futura de linter pode alertar.
 
 ### Controle de fluxo
 
@@ -166,3 +187,5 @@ com a Fase 2.
 - `0004-typeck.md` — type checker bidirecional + built-ins poly
 - `0005-mir-cfg.md` — MIR como CFG; split em 5a (CFG) e 5b (ownership)
 - `0006-codegen-llvm.md` — codegen via inkwell + linker subprocess
+- `0007-ownership-and-python-ergonomics.md` — análise de ownership (5b
+  infra) + ergonomia Python-like (script mode, auto-let, `def`/`class`)

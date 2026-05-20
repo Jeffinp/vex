@@ -93,8 +93,9 @@ fn main() -> ExitCode {
                 None => None,
                 Some("mir") => Some(EmitKind::Mir),
                 Some("liveness") => Some(EmitKind::Liveness),
+                Some("ownership") => Some(EmitKind::Ownership),
                 Some(other) => {
-                    eprintln!("--emit desconhecido: `{other}` (aceita: mir, liveness)");
+                    eprintln!("--emit desconhecido: `{other}` (aceita: mir, liveness, ownership)");
                     return ExitCode::FAILURE;
                 }
             };
