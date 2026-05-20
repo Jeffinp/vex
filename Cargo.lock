@@ -827,6 +827,7 @@ dependencies = [
 name = "vex-driver"
 version = "0.1.0"
 dependencies = [
+ "miette",
  "thiserror 1.0.69",
  "vex-ast",
  "vex-codegen",

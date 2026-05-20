@@ -1,8 +1,10 @@
 //! `vex` — CLI principal da linguagem Vex.
 
 use std::path::PathBuf;
+use std::process::ExitCode;
+
 use clap::{Parser, Subcommand};
-use vex_driver::{CompileRequest, compile};
+use vex_driver::{CompileRequest, DriverError, compile};
 
 #[derive(Parser)]
 #[command(name = "vex", version, about = "Vex programming language compiler")]
@@ -30,7 +32,7 @@ enum Commands {
         #[arg(long, short = 'O', default_value_t = 2)]
         opt_level: u8,
     },
-    /// Apenas faz type-check, sem gerar código.
+    /// Apenas faz lex + parse (e futuramente type-check), sem gerar código.
     Check { file: PathBuf },
     /// Formata um arquivo .vex in-place.
     Fmt { file: PathBuf },
@@ -40,20 +42,18 @@ enum Commands {
     New { name: String },
 }
 
-fn main() -> miette::Result<()> {
+fn main() -> ExitCode {
     let cli = Cli::parse();
-    match cli.command {
+    let result = match cli.command {
         Commands::Run { file, opt_level } => {
             let output = file.with_extension("");
             compile(CompileRequest {
                 source_path: file,
-                output_path: output.clone(),
+                output_path: output,
                 target: None,
                 opt_level,
                 check_only: false,
-            }).map_err(|e| miette::miette!("{e}"))?;
-            // TODO: spawn binário gerado
-            eprintln!("(run) compilation pipeline ainda em construção");
+            })
         }
         Commands::Build { file, output, target, opt_level } => {
             let output = output.unwrap_or_else(|| file.with_extension(""));
@@ -63,24 +63,40 @@ fn main() -> miette::Result<()> {
                 target,
                 opt_level,
                 check_only: false,
-            }).map_err(|e| miette::miette!("{e}"))?;
+            })
         }
-        Commands::Check { file } => {
-            compile(CompileRequest {
-                source_path: file.clone(),
-                output_path: file,
-                target: None,
-                opt_level: 0,
-                check_only: true,
-            }).map_err(|e| miette::miette!("{e}"))?;
+        Commands::Check { file } => compile(CompileRequest {
+            source_path: file.clone(),
+            output_path: file,
+            target: None,
+            opt_level: 0,
+            check_only: true,
+        }),
+        Commands::Fmt { file } => match std::fs::read_to_string(&file) {
+            Ok(src) => {
+                let out = vex_fmt::format(&src);
+                std::fs::write(&file, out).map_err(DriverError::from)
+            }
+            Err(e) => Err(DriverError::Io(e)),
+        },
+        Commands::Repl => {
+            eprintln!("repl ainda em construção (Fase 7)");
+            Ok(())
         }
-        Commands::Fmt { file } => {
-            let src = std::fs::read_to_string(&file).map_err(|e| miette::miette!("{e}"))?;
-            let out = vex_fmt::format(&src);
-            std::fs::write(&file, out).map_err(|e| miette::miette!("{e}"))?;
+        Commands::New { name } => {
+            eprintln!("scaffold do projeto `{name}` ainda em construção (Fase 7)");
+            Ok(())
         }
-        Commands::Repl => eprintln!("repl ainda em construção (Fase 5)"),
-        Commands::New { name } => eprintln!("scaffold do projeto `{name}` ainda em construção"),
+    };
+
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(DriverError::Io(e)) => {
+            eprintln!("erro de I/O: {e}");
+            ExitCode::FAILURE
+        }
+        // Erros estruturados (parse/typeck/codegen) já foram renderizados
+        // pelo driver via miette. Apenas saímos com código não-zero.
+        Err(_) => ExitCode::FAILURE,
     }
-    Ok(())
 }
