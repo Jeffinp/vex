@@ -9,7 +9,10 @@ use crate::expr::parse_expr;
 use crate::stmt::parse_block;
 use crate::ty::parse_type;
 
-pub fn parse_item(cur: &mut Cursor) -> Result<Item, ParseError> {
+/// Parser de um item top-level. Retorna `Vec<Item>` em vez de `Item`
+/// porque `class Foo { campos + métodos }` se desdobra em dois items
+/// (StructDecl + ImplBlock). Caso normal: vec de 1 elemento.
+pub fn parse_item(cur: &mut Cursor) -> Result<Vec<Item>, ParseError> {
     let is_pub = cur.eat(&Token::Pub)?;
     let is_comptime = cur.eat(&Token::Comptime)?;
 
@@ -19,11 +22,11 @@ pub fn parse_item(cur: &mut Cursor) -> Result<Item, ParseError> {
     })?.clone();
 
     match st.token {
-        Token::Fn     => parse_fn(cur, is_pub, is_comptime).map(Item::Fn),
-        Token::Struct => parse_struct(cur, is_pub).map(Item::Struct),
-        Token::Impl   => parse_impl(cur).map(Item::Impl),
-        Token::Const  => parse_const(cur, is_pub).map(Item::Const),
-        Token::Use    => parse_use(cur).map(Item::Use),
+        Token::Fn     => parse_fn(cur, is_pub, is_comptime).map(|f| vec![Item::Fn(f)]),
+        Token::Struct => parse_struct_or_class(cur, is_pub),
+        Token::Impl   => parse_impl(cur).map(|i| vec![Item::Impl(i)]),
+        Token::Const  => parse_const(cur, is_pub).map(|c| vec![Item::Const(c)]),
+        Token::Use    => parse_use(cur).map(|u| vec![Item::Use(u)]),
         _ => Err(ParseError::Unexpected {
             expected: "fn, struct, impl, const ou use".into(),
             found: format!("{:?}", st.token),
@@ -91,25 +94,65 @@ fn parse_param(cur: &mut Cursor) -> Result<Param, ParseError> {
     Ok(Param { name, ty, mutable, span: name_span })
 }
 
-fn parse_struct(cur: &mut Cursor, is_pub: bool) -> Result<StructDecl, ParseError> {
+/// Parser de `class Foo { ... }` (alias: `struct Foo { ... }`).
+///
+/// O corpo aceita **campos** (`nome: Tipo,`) e **métodos** (`def`/`fn`)
+/// misturados. Métodos são extraídos e empacotados num `ImplBlock`
+/// implícito — o caller recebe `[StructDecl, ImplBlock?]`. Princípio
+/// Python: ergonomia primeiro, semântica preserva o modelo Rust (impl
+/// separado existe e continua aceito para extensões pós-fato).
+fn parse_struct_or_class(cur: &mut Cursor, is_pub: bool) -> Result<Vec<Item>, ParseError> {
     let kw = cur.expect(Token::Struct)?;
     let name_tok = cur.bump()?;
     let name = match name_tok.token {
         Token::Ident(n) => n,
         _ => return Err(ParseError::Unexpected {
-            expected: "nome da struct".into(),
+            expected: "nome da struct/class".into(),
             found: format!("{:?}", name_tok.token),
             span: name_tok.span,
         }),
     };
     cur.expect(Token::LBrace)?;
+
     let mut fields = Vec::new();
+    let mut methods: Vec<FnDecl> = Vec::new();
+    let mut expecting_comma = false;
+
     while !matches!(cur.peek()?, Some(st) if matches!(st.token, Token::RBrace)) {
+        // Permite vírgula trailing e vírgula opcional entre campos.
+        if expecting_comma {
+            let _ = cur.eat(&Token::Comma)?;
+            expecting_comma = false;
+            continue;
+        }
+        // Lookahead: `pub` ou `fn`/`def` marca método; `Ident :` marca campo.
+        let mut offset = 0;
+        let is_method = loop {
+            match cur.peek_n(offset)?.map(|st| &st.token) {
+                Some(Token::Pub) | Some(Token::Comptime) => offset += 1,
+                Some(Token::Fn) => break true,
+                _ => break false,
+            }
+        };
+
+        if is_method {
+            let method_pub = cur.eat(&Token::Pub)?;
+            let method_comptime = cur.eat(&Token::Comptime)?;
+            let mut fn_decl = parse_fn(cur, method_pub, method_comptime)?;
+            // Métodos dentro de class: nome canonical preservado.
+            // Ajustes futuros (auto-namespace) podem rewriting aqui.
+            fn_decl.is_pub = method_pub;
+            fn_decl.is_comptime = method_comptime;
+            methods.push(fn_decl);
+            continue;
+        }
+
+        // Campo: `nome: Tipo`
         let fname_tok = cur.bump()?;
         let (fname, fspan) = match fname_tok.token {
             Token::Ident(n) => (n, fname_tok.span),
             _ => return Err(ParseError::Unexpected {
-                expected: "nome de campo".into(),
+                expected: "nome de campo ou `def`".into(),
                 found: format!("{:?}", fname_tok.token),
                 span: fname_tok.span,
             }),
@@ -117,10 +160,30 @@ fn parse_struct(cur: &mut Cursor, is_pub: bool) -> Result<StructDecl, ParseError
         cur.expect(Token::Colon)?;
         let fty = parse_type(cur)?;
         fields.push((fname, fty, fspan));
-        if !cur.eat(&Token::Comma)? { break; }
+        // Aceita vírgula como separador entre campos; opcional antes
+        // de um método ou de `}`.
+        if !cur.eat(&Token::Comma)? {
+            // Próximo precisa ser `}` ou método/campo na próxima iteração.
+            expecting_comma = false;
+        }
     }
     let rb = cur.expect(Token::RBrace)?;
-    Ok(StructDecl { name, fields, is_pub, span: kw.span.start..rb.span.end })
+
+    let mut items = Vec::with_capacity(2);
+    items.push(Item::Struct(StructDecl {
+        name: name.clone(),
+        fields,
+        is_pub,
+        span: kw.span.start..rb.span.end,
+    }));
+    if !methods.is_empty() {
+        items.push(Item::Impl(ImplBlock {
+            target: name,
+            methods,
+            span: kw.span.start..rb.span.end,
+        }));
+    }
+    Ok(items)
 }
 
 fn parse_impl(cur: &mut Cursor) -> Result<ImplBlock, ParseError> {

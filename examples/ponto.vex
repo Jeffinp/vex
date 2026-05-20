@@ -1,13 +1,10 @@
-// `class` (= struct) define dados.
-// `impl` ainda separado por ora — methods virão dentro de class na próxima fase.
-// Construtor: `Ponto { x: 0.0, y: 0.0 }` (estilo named-fields).
+// Methods dentro de class — sem `impl` separado.
+// Estilo Python total: `class` + `def` no mesmo bloco.
 
 class Ponto {
     x: float,
     y: float,
-}
 
-impl Ponto {
     def distancia(self, outro: Ponto) -> float {
         dx = self.x - outro.x
         dy = self.y - outro.y

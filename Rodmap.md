@@ -315,6 +315,9 @@ Pendentes do MVP (pós-Fase-6):
 - [x] **Arrays primeira-classe** (layout `{ ptr, len }`) — ADR 0008
 - [x] **Bounds check** em `xs[i]` via `vex_bounds_panic` (unsigned
       compare cobre `idx < 0` na mesma instrução)
+- [x] **Methods dentro de `class`** — sintaxe Python total. Parser
+      desdobra `class Foo { campos + métodos }` em `StructDecl + ImplBlock`.
+      `impl X { }` separado continua aceito.
 - [ ] Match decision-tree lowering
 - [ ] Cross-Windows testado E2E em CI
 - [ ] Auto-deref em method receivers

@@ -51,7 +51,7 @@ pub fn parse(source: &str) -> Result<Module, ParseError> {
 
     while !cur.is_eof() {
         if peek_is_item(&cur)? {
-            items.push(item::parse_item(&mut cur)?);
+            items.extend(item::parse_item(&mut cur)?);
         } else {
             let stmt = stmt::parse_stmt(&mut cur)?;
             let _ = cur.eat(&Token::Semi)?; // `;` opcional como dentro de blocos

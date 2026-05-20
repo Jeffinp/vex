@@ -11,16 +11,16 @@ Module {
                     (
                         "x",
                         Float,
-                        206..207,
+                        127..128,
                     ),
                     (
                         "y",
                         Float,
-                        220..221,
+                        141..142,
                     ),
                 ],
                 is_pub: false,
-                span: 188..231,
+                span: 109..307,
             },
         ),
         Impl(
@@ -36,7 +36,7 @@ Module {
                                     "Self",
                                 ),
                                 mutable: false,
-                                span: 264..268,
+                                span: 170..174,
                             },
                             Param {
                                 name: "outro",
@@ -44,7 +44,7 @@ Module {
                                     "Ponto",
                                 ),
                                 mutable: false,
-                                span: 270..275,
+                                span: 176..181,
                             },
                         ],
                         ret_type: Float,
@@ -54,56 +54,56 @@ Module {
                                     Assign {
                                         target: Ident(
                                             "dx",
-                                            303..305,
+                                            209..211,
                                         ),
                                         value: BinOp {
                                             op: Sub,
                                             left: FieldAccess {
                                                 obj: SelfRef(
-                                                    308..312,
+                                                    214..218,
                                                 ),
                                                 field: "x",
-                                                span: 308..314,
+                                                span: 214..220,
                                             },
                                             right: FieldAccess {
                                                 obj: Ident(
                                                     "outro",
-                                                    317..322,
+                                                    223..228,
                                                 ),
                                                 field: "x",
-                                                span: 317..324,
+                                                span: 223..230,
                                             },
-                                            span: 308..324,
+                                            span: 214..230,
                                         },
-                                        span: 303..324,
+                                        span: 209..230,
                                     },
                                 ),
                                 Expr(
                                     Assign {
                                         target: Ident(
                                             "dy",
-                                            333..335,
+                                            239..241,
                                         ),
                                         value: BinOp {
                                             op: Sub,
                                             left: FieldAccess {
                                                 obj: SelfRef(
-                                                    338..342,
+                                                    244..248,
                                                 ),
                                                 field: "y",
-                                                span: 338..344,
+                                                span: 244..250,
                                             },
                                             right: FieldAccess {
                                                 obj: Ident(
                                                     "outro",
-                                                    347..352,
+                                                    253..258,
                                                 ),
                                                 field: "y",
-                                                span: 347..354,
+                                                span: 253..260,
                                             },
-                                            span: 338..354,
+                                            span: 244..260,
                                         },
-                                        span: 333..354,
+                                        span: 239..260,
                                     },
                                 ),
                                 Return(
@@ -111,7 +111,7 @@ Module {
                                         Call {
                                             callee: Ident(
                                                 "sqrt",
-                                                370..374,
+                                                276..280,
                                             ),
                                             args: [
                                                 BinOp {
@@ -120,43 +120,43 @@ Module {
                                                         op: Mul,
                                                         left: Ident(
                                                             "dx",
-                                                            375..377,
+                                                            281..283,
                                                         ),
                                                         right: Ident(
                                                             "dx",
-                                                            380..382,
+                                                            286..288,
                                                         ),
-                                                        span: 375..382,
+                                                        span: 281..288,
                                                     },
                                                     right: BinOp {
                                                         op: Mul,
                                                         left: Ident(
                                                             "dy",
-                                                            385..387,
+                                                            291..293,
                                                         ),
                                                         right: Ident(
                                                             "dy",
-                                                            390..392,
+                                                            296..298,
                                                         ),
-                                                        span: 385..392,
+                                                        span: 291..298,
                                                     },
-                                                    span: 375..392,
+                                                    span: 281..298,
                                                 },
                                             ],
-                                            span: 370..393,
+                                            span: 276..299,
                                         },
                                     ),
-                                    363..393,
+                                    269..299,
                                 ),
                             ],
-                            span: 293..399,
+                            span: 199..305,
                         },
                         is_pub: false,
                         is_comptime: false,
-                        span: 250..399,
+                        span: 156..305,
                     },
                 ],
-                span: 233..401,
+                span: 109..307,
             },
         ),
         Fn(
@@ -170,7 +170,7 @@ Module {
                             Assign {
                                 target: Ident(
                                     "a",
-                                    403..404,
+                                    309..310,
                                 ),
                                 value: StructLit {
                                     name: "Ponto",
@@ -179,27 +179,27 @@ Module {
                                             "x",
                                             Float(
                                                 0.0,
-                                                418..421,
+                                                324..327,
                                             ),
                                         ),
                                         (
                                             "y",
                                             Float(
                                                 0.0,
-                                                426..429,
+                                                332..335,
                                             ),
                                         ),
                                     ],
-                                    span: 407..431,
+                                    span: 313..337,
                                 },
-                                span: 403..431,
+                                span: 309..337,
                             },
                         ),
                         Expr(
                             Assign {
                                 target: Ident(
                                     "b",
-                                    432..433,
+                                    338..339,
                                 ),
                                 value: StructLit {
                                     name: "Ponto",
@@ -208,53 +208,53 @@ Module {
                                             "x",
                                             Float(
                                                 3.0,
-                                                447..450,
+                                                353..356,
                                             ),
                                         ),
                                         (
                                             "y",
                                             Float(
                                                 4.0,
-                                                455..458,
+                                                361..364,
                                             ),
                                         ),
                                     ],
-                                    span: 436..460,
+                                    span: 342..366,
                                 },
-                                span: 432..460,
+                                span: 338..366,
                             },
                         ),
                         Expr(
                             Call {
                                 callee: Ident(
                                     "println",
-                                    461..468,
+                                    367..374,
                                 ),
                                 args: [
                                     MethodCall {
                                         receiver: Ident(
                                             "a",
-                                            469..470,
+                                            375..376,
                                         ),
                                         name: "distancia",
                                         args: [
                                             Ident(
                                                 "b",
-                                                481..482,
+                                                387..388,
                                             ),
                                         ],
-                                        span: 469..483,
+                                        span: 375..389,
                                     },
                                 ],
-                                span: 461..484,
+                                span: 367..390,
                             },
                         ),
                     ],
-                    span: 403..485,
+                    span: 309..391,
                 },
                 is_pub: false,
                 is_comptime: false,
-                span: 403..485,
+                span: 309..391,
             },
         ),
     ],
