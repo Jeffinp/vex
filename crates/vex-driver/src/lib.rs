@@ -44,6 +44,8 @@ pub struct CompileRequest {
 pub enum EmitKind {
     /// Pretty-print do MIR (CFG).
     Mir,
+    /// Anotações de liveness sobre o MIR.
+    Liveness,
 }
 
 /// Diagnóstico renderizável com `miette` (mensagem, fonte com nome, span).
@@ -113,6 +115,13 @@ pub fn compile(req: CompileRequest) -> Result<(), DriverError> {
 
     if let Some(EmitKind::Mir) = req.emit {
         println!("{}", vex_mir::pretty_print_module(&mir));
+        return Ok(());
+    }
+    if let Some(EmitKind::Liveness) = req.emit {
+        for f in &mir.fns {
+            let liv = vex_mir::analyze_liveness(f);
+            println!("{}", vex_mir::pretty_print_liveness(f, &liv));
+        }
         return Ok(());
     }
 

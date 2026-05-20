@@ -92,8 +92,9 @@ fn main() -> ExitCode {
             let emit = match emit.as_deref() {
                 None => None,
                 Some("mir") => Some(EmitKind::Mir),
+                Some("liveness") => Some(EmitKind::Liveness),
                 Some(other) => {
-                    eprintln!("--emit desconhecido: `{other}` (aceita: mir)");
+                    eprintln!("--emit desconhecido: `{other}` (aceita: mir, liveness)");
                     return ExitCode::FAILURE;
                 }
             };

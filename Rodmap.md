@@ -242,14 +242,20 @@ Decisão arquitetural em `docs/design/0005-mir-cfg.md`.
 
 **Entregável:** MIR pronto para alimentar codegen na Fase 6.
 
-## Fase 5b — Ownership analysis (a fazer)
+## Fase 5b — Ownership analysis
 
-**Status:** ⏳ Pendente. Split feito porque depende do MIR.
+**Status:** 🚧 Em curso (liveness implementado).
 
-- [ ] Last-use analysis sobre CFG (ASAP destruction)
-- [ ] Generational reference checks insertion
+- [x] **Liveness analysis** sobre CFG via dataflow backward
+      (use/def/live_in/live_out + last_use por local)
+- [x] CLI: `vex check <arq> --emit=liveness` imprime análise
+- [x] 4 testes unitários (simple return, if branches merge, dead local,
+      pretty print)
+- [ ] ASAP destruction: codegen consome `last_use` para emitir drops
+- [ ] Gen-ref tag em alocações (Vale-style)
+- [ ] Gen-ref check insertion em derefs (chama `vex_gen_check`)
 - [ ] Linear type validation (resources marcados)
-- [ ] Move/use-after-move detection
+- [ ] Use-after-move detection sobre o CFG
 
 ---
 
