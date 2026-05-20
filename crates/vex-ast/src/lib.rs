@@ -127,6 +127,11 @@ pub enum Expr {
     Match { val: Box<Expr>, arms: Vec<MatchArm>, span: Span },
     Block(Block),
     Ref { mutable: bool, val: Box<Expr>, span: Span },
+    /// Atribuição: `target = value`. Avalia para `void`.
+    /// `target` deve ser uma lvalue (ident, field access, index).
+    Assign { target: Box<Expr>, value: Box<Expr>, span: Span },
+    /// Referência ao `self` em métodos.
+    SelfRef(Span),
 }
 
 #[derive(Debug, Clone)]

@@ -113,17 +113,37 @@ cargo test --workspace
 
 ## Fase 2 — Parser (Dia 4-8)
 
-**Mudança vs roadmap original:** parser **hand-written** (recursive
-descent + Pratt para expressões), não gerado.
+**Status:** ✅ Concluída.
 
-- [ ] Estrutura de erros com recovery (`Result` + sync points)
-- [ ] Recursive descent para items (fn, struct, impl)
-- [ ] Pratt parser para expressões (precedência via binding power)
-- [ ] Statements (let, return, if, while, for, match)
-- [ ] Patterns (literal, ident, wildcard, range)
-- [ ] Integração `miette` — erros com span + hint
+Parser **hand-written** (recursive descent + Pratt para expressões),
+estruturado em módulos: `cursor`, `ty`, `expr`, `stmt`, `item`, `error`.
+Decisão técnica fundamentada em `docs/design/0002-parser-pratt.md`.
 
-**Entregável:** Parser produz AST correta para todos os `examples/`.
+- [x] `Cursor` com peek/peek_n/bump/expect/eat sobre stream de tokens
+- [x] `ParseError` estruturado (Unexpected, UnexpectedEof, InvalidExpr,
+      InvalidType, InvalidPattern, Lex)
+- [x] Items: fn (com `pub`/`comptime`/parâmetros/retorno), struct,
+      impl, const, use (paths multi-segment)
+- [x] Statements: let (`mut`/anotação opcional), return (com/sem
+      valor), if/else/else-if-chain, while, for, break, continue,
+      expression statement
+- [x] Expressões via Pratt (BP table com 9 níveis + postfix)
+- [x] Operadores: `+ - * / %`, `== !=`, `< > <= >=`, `&& ||`,
+      unários `- !`, atribuição `=` (right-assoc)
+- [x] Postfix: chamada `f(args)`, field access `obj.field`,
+      method call `obj.method(args)`, index `arr[i]`
+- [x] Atoms: literais (int/float/str/bool/char), ident, `self`,
+      parênteses, array literal, struct literal, refs (`&` `&mut`),
+      match, blocos
+- [x] Patterns: int literal, bool, str, ident, wildcard (`_`),
+      ranges (`1..10`, `1..=10`)
+- [x] Heurística de desambiguação para struct literal (apenas se
+      identificador começa com maiúscula)
+- [x] 23 testes unitários + 3 snapshot tests (insta) sobre
+      `examples/{hello,fib,ponto}.vex`
+- [x] `cargo clippy -D warnings` verde
+
+**Entregável:** `cargo test -p vex-parser` verde (26/26).
 
 ---
 

@@ -16,3 +16,7 @@ thiserror.workspace = true
 [dev-dependencies]
 insta.workspace = true
 pretty_assertions.workspace = true
+
+[[test]]
+name = "snapshot"
+path = "tests/snapshot.rs"

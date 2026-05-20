@@ -1,0 +1,38 @@
+---
+source: crates/vex-parser/tests/snapshot.rs
+expression: snap(src)
+---
+Module {
+    items: [
+        Fn(
+            FnDecl {
+                name: "main",
+                params: [],
+                ret_type: Void,
+                body: Block {
+                    stmts: [
+                        Expr(
+                            Call {
+                                callee: Ident(
+                                    "println",
+                                    24..31,
+                                ),
+                                args: [
+                                    Str(
+                                        "Hello, Vex!",
+                                        32..45,
+                                    ),
+                                ],
+                                span: 24..46,
+                            },
+                        ),
+                    ],
+                    span: 18..48,
+                },
+                is_pub: false,
+                is_comptime: false,
+                span: 0..48,
+            },
+        ),
+    ],
+}

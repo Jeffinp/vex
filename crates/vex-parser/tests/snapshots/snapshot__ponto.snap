@@ -1,0 +1,273 @@
+---
+source: crates/vex-parser/tests/snapshot.rs
+expression: snap(src)
+---
+Module {
+    items: [
+        Struct(
+            StructDecl {
+                name: "Ponto",
+                fields: [
+                    (
+                        "x",
+                        Float,
+                        19..20,
+                    ),
+                    (
+                        "y",
+                        Float,
+                        33..34,
+                    ),
+                ],
+                is_pub: false,
+                span: 0..44,
+            },
+        ),
+        Impl(
+            ImplBlock {
+                target: "Ponto",
+                methods: [
+                    FnDecl {
+                        name: "distancia",
+                        params: [
+                            Param {
+                                name: "self",
+                                ty: Named(
+                                    "Self",
+                                ),
+                                mutable: false,
+                                span: 76..80,
+                            },
+                            Param {
+                                name: "outro",
+                                ty: Named(
+                                    "Ponto",
+                                ),
+                                mutable: false,
+                                span: 82..87,
+                            },
+                        ],
+                        ret_type: Float,
+                        body: Block {
+                            stmts: [
+                                Let {
+                                    name: "dx",
+                                    mutable: false,
+                                    type_ann: Some(
+                                        Float,
+                                    ),
+                                    value: BinOp {
+                                        op: Sub,
+                                        left: FieldAccess {
+                                            obj: SelfRef(
+                                                131..135,
+                                            ),
+                                            field: "x",
+                                            span: 131..137,
+                                        },
+                                        right: FieldAccess {
+                                            obj: Ident(
+                                                "outro",
+                                                140..145,
+                                            ),
+                                            field: "x",
+                                            span: 140..147,
+                                        },
+                                        span: 131..147,
+                                    },
+                                    span: 115..147,
+                                },
+                                Let {
+                                    name: "dy",
+                                    mutable: false,
+                                    type_ann: Some(
+                                        Float,
+                                    ),
+                                    value: BinOp {
+                                        op: Sub,
+                                        left: FieldAccess {
+                                            obj: SelfRef(
+                                                172..176,
+                                            ),
+                                            field: "y",
+                                            span: 172..178,
+                                        },
+                                        right: FieldAccess {
+                                            obj: Ident(
+                                                "outro",
+                                                181..186,
+                                            ),
+                                            field: "y",
+                                            span: 181..188,
+                                        },
+                                        span: 172..188,
+                                    },
+                                    span: 156..188,
+                                },
+                                Return(
+                                    Some(
+                                        Call {
+                                            callee: Ident(
+                                                "sqrt",
+                                                204..208,
+                                            ),
+                                            args: [
+                                                BinOp {
+                                                    op: Add,
+                                                    left: BinOp {
+                                                        op: Mul,
+                                                        left: Ident(
+                                                            "dx",
+                                                            209..211,
+                                                        ),
+                                                        right: Ident(
+                                                            "dx",
+                                                            214..216,
+                                                        ),
+                                                        span: 209..216,
+                                                    },
+                                                    right: BinOp {
+                                                        op: Mul,
+                                                        left: Ident(
+                                                            "dy",
+                                                            219..221,
+                                                        ),
+                                                        right: Ident(
+                                                            "dy",
+                                                            224..226,
+                                                        ),
+                                                        span: 219..226,
+                                                    },
+                                                    span: 209..226,
+                                                },
+                                            ],
+                                            span: 204..227,
+                                        },
+                                    ),
+                                    197..227,
+                                ),
+                            ],
+                            span: 105..233,
+                        },
+                        is_pub: false,
+                        is_comptime: false,
+                        span: 63..233,
+                    },
+                ],
+                span: 46..235,
+            },
+        ),
+        Fn(
+            FnDecl {
+                name: "main",
+                params: [],
+                ret_type: Void,
+                body: Block {
+                    stmts: [
+                        Let {
+                            name: "a",
+                            mutable: false,
+                            type_ann: Some(
+                                Named(
+                                    "Ponto",
+                                ),
+                            ),
+                            value: StructLit {
+                                name: "Ponto",
+                                fields: [
+                                    (
+                                        "x",
+                                        Float(
+                                            0.0,
+                                            287..290,
+                                        ),
+                                    ),
+                                    (
+                                        "y",
+                                        Float(
+                                            0.0,
+                                            295..298,
+                                        ),
+                                    ),
+                                ],
+                                span: 276..300,
+                            },
+                            span: 261..300,
+                        },
+                        Let {
+                            name: "b",
+                            mutable: false,
+                            type_ann: Some(
+                                Named(
+                                    "Ponto",
+                                ),
+                            ),
+                            value: StructLit {
+                                name: "Ponto",
+                                fields: [
+                                    (
+                                        "x",
+                                        Float(
+                                            3.0,
+                                            331..334,
+                                        ),
+                                    ),
+                                    (
+                                        "y",
+                                        Float(
+                                            4.0,
+                                            339..342,
+                                        ),
+                                    ),
+                                ],
+                                span: 320..344,
+                            },
+                            span: 305..344,
+                        },
+                        Let {
+                            name: "d",
+                            mutable: false,
+                            type_ann: Some(
+                                Float,
+                            ),
+                            value: MethodCall {
+                                receiver: Ident(
+                                    "a",
+                                    364..365,
+                                ),
+                                name: "distancia",
+                                args: [
+                                    Ident(
+                                        "b",
+                                        376..377,
+                                    ),
+                                ],
+                                span: 364..378,
+                            },
+                            span: 349..378,
+                        },
+                        Expr(
+                            Call {
+                                callee: Ident(
+                                    "println",
+                                    383..390,
+                                ),
+                                args: [
+                                    Ident(
+                                        "d",
+                                        391..392,
+                                    ),
+                                ],
+                                span: 383..393,
+                            },
+                        ),
+                    ],
+                    span: 255..395,
+                },
+                is_pub: false,
+                is_comptime: false,
+                span: 237..395,
+            },
+        ),
+    ],
+}

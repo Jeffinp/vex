@@ -1,0 +1,162 @@
+---
+source: crates/vex-parser/tests/snapshot.rs
+expression: snap(src)
+---
+Module {
+    items: [
+        Fn(
+            FnDecl {
+                name: "fib",
+                params: [
+                    Param {
+                        name: "n",
+                        ty: Int,
+                        mutable: false,
+                        span: 7..8,
+                    },
+                ],
+                ret_type: Int,
+                body: Block {
+                    stmts: [
+                        If {
+                            cond: BinOp {
+                                op: Lte,
+                                left: Ident(
+                                    "n",
+                                    31..32,
+                                ),
+                                right: Int(
+                                    1,
+                                    36..37,
+                                ),
+                                span: 31..37,
+                            },
+                            then_body: Block {
+                                stmts: [
+                                    Return(
+                                        Some(
+                                            Ident(
+                                                "n",
+                                                55..56,
+                                            ),
+                                        ),
+                                        48..56,
+                                    ),
+                                ],
+                                span: 38..62,
+                            },
+                            else_body: None,
+                            span: 28..62,
+                        },
+                        Return(
+                            Some(
+                                BinOp {
+                                    op: Add,
+                                    left: Call {
+                                        callee: Ident(
+                                            "fib",
+                                            74..77,
+                                        ),
+                                        args: [
+                                            BinOp {
+                                                op: Sub,
+                                                left: Ident(
+                                                    "n",
+                                                    78..79,
+                                                ),
+                                                right: Int(
+                                                    1,
+                                                    82..83,
+                                                ),
+                                                span: 78..83,
+                                            },
+                                        ],
+                                        span: 74..84,
+                                    },
+                                    right: Call {
+                                        callee: Ident(
+                                            "fib",
+                                            87..90,
+                                        ),
+                                        args: [
+                                            BinOp {
+                                                op: Sub,
+                                                left: Ident(
+                                                    "n",
+                                                    91..92,
+                                                ),
+                                                right: Int(
+                                                    2,
+                                                    95..96,
+                                                ),
+                                                span: 91..96,
+                                            },
+                                        ],
+                                        span: 87..97,
+                                    },
+                                    span: 74..97,
+                                },
+                            ),
+                            67..97,
+                        ),
+                    ],
+                    span: 22..99,
+                },
+                is_pub: false,
+                is_comptime: false,
+                span: 0..99,
+            },
+        ),
+        Fn(
+            FnDecl {
+                name: "main",
+                params: [],
+                ret_type: Void,
+                body: Block {
+                    stmts: [
+                        Let {
+                            name: "result",
+                            mutable: false,
+                            type_ann: Some(
+                                Int,
+                            ),
+                            value: Call {
+                                callee: Ident(
+                                    "fib",
+                                    143..146,
+                                ),
+                                args: [
+                                    Int(
+                                        10,
+                                        147..149,
+                                    ),
+                                ],
+                                span: 143..150,
+                            },
+                            span: 125..150,
+                        },
+                        Expr(
+                            Call {
+                                callee: Ident(
+                                    "println",
+                                    155..162,
+                                ),
+                                args: [
+                                    Ident(
+                                        "result",
+                                        163..169,
+                                    ),
+                                ],
+                                span: 155..170,
+                            },
+                        ),
+                    ],
+                    span: 119..172,
+                },
+                is_pub: false,
+                is_comptime: false,
+                span: 101..172,
+            },
+        ),
+    ],
+}

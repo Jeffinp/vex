@@ -17,26 +17,113 @@ Três princípios não-negociáveis:
    references* (estilo Vale) + *linear types* opcionais para recursos
    (estilo Austral). Sem GC.
 
-## Sintaxe alvo (informal)
+## Estado atual (Fase 2 concluída)
+
+- ✅ **Lexer** completo: tokens, escapes, comentários aninhados, spans.
+- ✅ **Parser** completo: AST para fn, struct, impl, const, use; statements
+  let/return/if/else/while/for/break/continue; expressões com Pratt
+  parsing (precedência + associatividade); patterns para match;
+  references (`&T`, `&mut T`).
+- ⏳ Próximo: name resolution + HIR (Fase 3).
+
+## Sintaxe (informal, atualizada conforme parser evolui)
+
+### Declarações
 
 ```vex
-// declarações
+// função
 fn nome(p1: T1, p2: T2) -> T3 { ... }
-struct Nome { field: T, ... }
-impl Nome { fn metodo(self, ...) -> ... { ... } }
-let x = expr                  // imutável, tipo inferido
-let mut x: int = 0            // mutável, tipo anotado
-const PI: float = 3.14        // constante de compilação
+pub fn nome(...) { ... }              // visível externamente
+comptime fn nome(...) { ... }         // executada em tempo de compilação
 
-// controle
+// struct
+struct Nome { field: T, ... }
+pub struct Nome { ... }
+
+// impl
+impl Nome {
+    fn metodo(self, ...) -> ... { ... }
+    pub fn estatico(...) -> Nome { ... }
+}
+
+// constante
+const PI: float = 3.14159
+pub const VERSION: str = "0.1"
+
+// uso
+use std::io::println
+use std::math
+```
+
+### Variáveis
+
+```vex
+let x = 42                  // imutável, tipo inferido
+let mut x: int = 0          // mutável, tipo anotado
+let y: float = 3.14         // imutável, tipo anotado
+```
+
+### Controle de fluxo
+
+```vex
 if cond { ... } else { ... }
+if cond { ... } else if outra { ... } else { ... }
+
 while cond { ... }
 for x in iter { ... }
-match val { pat => expr, ... }
+break
+continue
 
-// referencias
+return val
+return                       // sem valor (tipo void)
+
+match val {
+    0     => "zero",
+    1..10 => "pequeno",       // pattern range
+    _     => "outro",
+}
+```
+
+### Expressões e operadores
+
+Precedência (do mais forte ao mais fraco):
+
+| Categoria              | Operadores                 |
+|------------------------|----------------------------|
+| Postfix                | `f(args)`  `obj.field`  `arr[i]` |
+| Unário                 | `-x`  `!x`                 |
+| Multiplicativo         | `*`  `/`  `%`              |
+| Aditivo                | `+`  `-`                   |
+| Comparação ordem       | `<`  `>`  `<=`  `>=`       |
+| Igualdade              | `==`  `!=`                 |
+| AND lógico             | `&&`                       |
+| OR lógico              | `\|\|`                       |
+| Atribuição             | `=`  (right-associative)   |
+
+### Referências
+
+```vex
 &x         // borrow imutável
 &mut x     // borrow mutável (linear se T: linear)
+```
+
+Tipos:
+
+```vex
+&T              // borrow imutável
+&mut T          // borrow mutável
+[T]             // array
+fn(T1, T2) -> R // tipo de função
+```
+
+### Self em métodos
+
+```vex
+impl Ponto {
+    fn distancia(self, outro: Ponto) -> float {
+        self.x - outro.x   // `self` é expressão válida
+    }
+}
 ```
 
 ## Tipos primitivos
@@ -47,11 +134,14 @@ match val { pat => expr, ... }
 | float | double  | IEEE-754 64-bit |
 | bool  | i1      | |
 | str   | { ptr, len } | UTF-8, length-prefixed |
+| char  | i32     | codepoint Unicode |
 | void  | void    | tipo unit |
 
 ## Modelo de ownership
 
-Em desenvolvimento. Ver `docs/design/0002-ownership.md` (futuro).
+Em desenvolvimento. Implementação na Fase 5. Ver
+`docs/design/0002-parser-pratt.md` (sintaxe) e o ADR futuro 0003
+para semântica.
 
 Resumo:
 - Valores por default são **owned** (move semantics).
@@ -61,4 +151,10 @@ Resumo:
 
 ## Gramática
 
-Ver `docs/grammar.ebnf`.
+Ver `docs/grammar.ebnf` para a gramática formal completa, atualizada
+com a Fase 2.
+
+## ADRs
+
+- `0001-architecture.md` — backend LLVM, ownership híbrido, tooling Dia 1
+- `0002-parser-pratt.md` — recursive descent + Pratt parsing

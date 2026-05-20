@@ -1,25 +1,25 @@
-(* Vex Language — Gramática EBNF (v0.1 draft)
-   Forma informal — refinada conforme o parser evolui (Fase 2). *)
+(* Vex Language — Gramática EBNF (v0.1, Fase 2)
+   Atualizada conforme o parser. Mudanças nesta gramática devem ser
+   acompanhadas de atualização em crates/vex-parser/. *)
 
 module          = { item } ;
 
-item            = fn_decl | struct_decl | impl_block | const_decl | use_decl ;
+item            = [ "pub" ] [ "comptime" ] item_body ;
+item_body       = fn_decl | struct_decl | impl_block | const_decl | use_decl ;
 
-fn_decl         = [ "pub" ] [ "comptime" ] "fn" IDENT
-                  "(" [ param { "," param } ] ")"
+fn_decl         = "fn" IDENT "(" [ param { "," param } ] ")"
                   [ "->" type ] block ;
 
-param           = [ "mut" ] IDENT ":" type ;
+param           = [ "mut" ] ( "self" | IDENT ":" type ) ;
 
-struct_decl     = [ "pub" ] "struct" IDENT "{" { field "," } "}" ;
+struct_decl     = "struct" IDENT "{" [ field { "," field } [ "," ] ] "}" ;
 field           = IDENT ":" type ;
 
-impl_block      = "impl" IDENT "{" { fn_decl } "}" ;
+impl_block      = "impl" IDENT "{" { [ "pub" ] fn_decl } "}" ;
 
-const_decl      = [ "pub" ] "const" IDENT ":" type "=" expr ;
+const_decl      = "const" IDENT ":" type "=" expr ;
 
-use_decl        = "use" path ;
-path            = IDENT { "::" IDENT } ;
+use_decl        = "use" IDENT { "::" IDENT } ;
 
 block           = "{" { stmt } "}" ;
 
@@ -30,27 +30,66 @@ stmt            = let_stmt
                 | for_stmt
                 | "break"
                 | "continue"
-                | expr_stmt ;
+                | expr ;          (* expression statement *)
 
 let_stmt        = "let" [ "mut" ] IDENT [ ":" type ] "=" expr ;
 return_stmt     = "return" [ expr ] ;
 if_stmt         = "if" expr block [ "else" ( block | if_stmt ) ] ;
 while_stmt      = "while" expr block ;
 for_stmt        = "for" IDENT "in" expr block ;
-expr_stmt       = expr ;
 
-(* Expressões definidas via Pratt parsing — precedência implementada
-   no parser, não na gramática. *)
-expr            = (* operadores binários, unários, calls, field access,
-                    index, struct literals, match, blocks, refs *) ;
+(* Expressões: precedência codificada via Pratt (binding power).
+   Veja docs/design/0002-parser-pratt.md. *)
+expr            = assignment ;
 
-type            = "int" | "float" | "bool" | "str" | "void"
+assignment      = logical_or [ "=" assignment ] ;          (* right-assoc *)
+logical_or      = logical_and { "||" logical_and } ;
+logical_and     = equality { "&&" equality } ;
+equality        = comparison { ( "==" | "!=" ) comparison } ;
+comparison      = additive { ( "<" | ">" | "<=" | ">=" ) additive } ;
+additive        = multiplicative { ( "+" | "-" ) multiplicative } ;
+multiplicative  = unary { ( "*" | "/" | "%" ) unary } ;
+unary           = [ "-" | "!" ] postfix ;
+postfix         = atom { call | field | index } ;
+
+call            = "(" [ expr { "," expr } ] ")" ;
+field           = "." IDENT ;
+index           = "[" expr "]" ;
+
+atom            = INT_LIT
+                | FLOAT_LIT
+                | STR_LIT
+                | "true" | "false"
+                | "self"
+                | IDENT
+                | struct_lit                (* IDENT começando com maiúscula *)
+                | "(" expr ")"
+                | array_lit
+                | ref_expr
+                | match_expr
+                | block ;
+
+struct_lit      = IDENT_CAPITAL "{" [ field_init { "," field_init } [ "," ] ] "}" ;
+field_init      = IDENT ":" expr ;
+array_lit       = "[" [ expr { "," expr } [ "," ] ] "]" ;
+ref_expr        = "&" [ "mut" ] unary ;
+match_expr      = "match" expr "{" [ match_arm { "," match_arm } [ "," ] ] "}" ;
+match_arm       = pattern "=>" expr ;
+
+pattern         = INT_LIT [ ( ".." | "..=" ) INT_LIT ]
+                | "true" | "false"
+                | STR_LIT
+                | "_"
+                | IDENT ;
+
+type            = "int" | "float" | "bool" | "str" | "char" | "void"
                 | IDENT
                 | "[" type "]"
-                | "&" [ "mut" ] type
-                | "fn" "(" [ type { "," type } ] ")" "->" type ;
+                | "&" [ "mut" ] type ;
 
 IDENT           = letter { letter | digit | "_" } ;
+IDENT_CAPITAL   = upper_letter { letter | digit | "_" } ;
 INT_LIT         = digit { digit | "_" } ;
 FLOAT_LIT       = INT_LIT "." INT_LIT ;
 STR_LIT         = '"' { any_char_except_quote | escape } '"' ;
+escape          = "\" ( "n" | "t" | "r" | "0" | "\" | '"' | "'" ) ;

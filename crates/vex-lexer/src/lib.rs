@@ -15,21 +15,21 @@ use smol_str::SmolStr;
 pub type Span = std::ops::Range<usize>;
 
 /// Erro de tokenização. Cada variante carrega o span exato para diagnóstico.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LexError {
-    /// Caractere inesperado no fonte.
+    #[error("caractere inesperado")]
     UnknownChar { span: Span },
-    /// String literal sem fechamento.
+    #[error("string literal não fechada")]
     UnterminatedString { span: Span },
-    /// Char literal sem fechamento.
+    #[error("char literal não fechado")]
     UnterminatedChar { span: Span },
-    /// Char literal vazio (`''`) ou multi-grafema.
+    #[error("char literal inválido")]
     InvalidCharLiteral { span: Span },
-    /// Escape sequence inválida (`\q`, `\xZZ`, etc.).
+    #[error("escape sequence inválida")]
     InvalidEscape { span: Span },
-    /// Comentário de bloco sem fechamento.
+    #[error("bloco de comentário não fechado")]
     UnterminatedBlockComment { span: Span },
-    /// Literal numérico mal-formado.
+    #[error("número inválido: {raw}")]
     InvalidNumber { span: Span, raw: String },
 }
 

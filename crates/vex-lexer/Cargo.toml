@@ -9,6 +9,7 @@ description = "Lexer for the Vex programming language"
 [dependencies]
 logos.workspace = true
 smol_str.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
