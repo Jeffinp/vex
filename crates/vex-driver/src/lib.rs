@@ -95,7 +95,15 @@ pub fn compile(req: CompileRequest) -> Result<(), DriverError> {
     }
 
     // Lowering HIR → MIR. Acontece sempre — barato e habilita --emit=mir.
-    let mir = match vex_mir::lower_module(&hir, &|_| None) {
+    // Constrói tabela `fn_id → ret_ty` para o lowerer inferir tipos de Call.
+    let mut fn_ret_tys: std::collections::HashMap<vex_hir::DefId, vex_typeck::Ty>
+        = std::collections::HashMap::new();
+    for item in &hir.items {
+        if let vex_hir::HirItem::Fn(f) = item {
+            fn_ret_tys.insert(f.id, vex_typeck::lower_hir_type(&f.ret_type, None));
+        }
+    }
+    let mir = match vex_mir::lower_module(&hir, &|id| fn_ret_tys.get(&id).cloned()) {
         Ok(m) => m,
         Err(e) => {
             eprintln!("erro de lowering: {e}");
@@ -120,13 +128,56 @@ pub fn compile(req: CompileRequest) -> Result<(), DriverError> {
         return Ok(());
     }
 
-    // Codegen ainda não implementado
-    let _ = (req.output_path, req.target, req.opt_level);
-    eprintln!(
-        "⚠  {} pipeline até MIR OK, mas codegen ainda não implementado (Fase 6).",
-        path_str
-    );
-    Err(DriverError::Codegen)
+    // Codegen LLVM IR → arquivo objeto → binário.
+    let obj_path = req.output_path.with_extension("o");
+    let cg_opts = vex_codegen::CodegenOptions {
+        target_triple: req.target.clone(),
+        opt_level: req.opt_level,
+        emit_ir: false,
+    };
+    if let Err(e) = vex_codegen::compile_module(&mir, &obj_path, &cg_opts) {
+        eprintln!("erro de codegen: {e}");
+        return Err(DriverError::Codegen);
+    }
+
+    // Linker
+    let runtime_lib = match find_runtime_lib() {
+        Some(p) => p,
+        None => {
+            eprintln!("runtime não encontrado — rode `cargo build -p vex-runtime`");
+            return Err(DriverError::Codegen);
+        }
+    };
+    let link_opts = vex_codegen::LinkOptions {
+        object: obj_path.clone(),
+        output: req.output_path.clone(),
+        runtime_lib,
+        target_triple: req.target.clone(),
+    };
+    if let Err(e) = vex_codegen::link_object(&link_opts) {
+        eprintln!("erro de linker: {e}");
+        return Err(DriverError::Codegen);
+    }
+
+    // Limpa o .o intermediário (binário já tem tudo).
+    let _ = std::fs::remove_file(&obj_path);
+
+    eprintln!("✓ binário gerado: {}", req.output_path.display());
+    Ok(())
+}
+
+/// Procura `libvex_runtime.a` em `target/debug/` (cwd). Em runtime real,
+/// idealmente teríamos um env var ou descoberta via `cargo metadata`.
+fn find_runtime_lib() -> Option<std::path::PathBuf> {
+    let candidates = [
+        "target/debug/libvex_runtime.a",
+        "target/release/libvex_runtime.a",
+    ];
+    for c in candidates {
+        let p = std::path::PathBuf::from(c);
+        if p.exists() { return Some(p.canonicalize().unwrap_or(p)); }
+    }
+    None
 }
 
 fn render(

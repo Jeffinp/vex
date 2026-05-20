@@ -20,6 +20,17 @@ pub struct BlockId(pub u32);
 pub struct MirModule {
     pub fns: Vec<MirFn>,
     pub structs: Vec<MirStruct>,
+    /// Resolução de `Callee::Method { struct_id, name }` para o `DefId`
+    /// da função. Construído pelo lowerer; permite codegen direto sem
+    /// virtual dispatch.
+    pub methods: Vec<MirMethod>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MirMethod {
+    pub struct_id: DefId,
+    pub name: SmolStr,
+    pub fn_id: DefId,
 }
 
 #[derive(Debug, Clone)]

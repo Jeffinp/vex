@@ -65,22 +65,35 @@ fn main() -> void {
 
 ## Status
 
-🚧 **v0.1 em desenvolvimento.** Fase 0 (scaffold) concluída. Em curso:
-Fase 1 (lexer). Ver [`Rodmap.md`](Rodmap.md) para o cronograma completo.
+🎉 **MVP end-to-end funcional.** `vex run examples/fib.vex` → `55`.
 
 | Fase | Status | Descrição |
 |------|--------|-----------|
 | 0    | ✅     | Scaffold do workspace |
-| 1    | 🚧     | Lexer (logos) |
-| 2    | ⏳     | Parser hand-written |
-| 3    | ⏳     | Name resolution + HIR |
-| 4    | ⏳     | Type checker |
-| 5    | ⏳     | MIR + ownership |
-| 6    | ⏳     | Codegen LLVM + cross-Windows |
-| 7    | ⏳     | CLI + formatter |
-| 8    | ⏳     | Stdlib mínima |
+| 1    | ✅     | Lexer (logos) |
+| 2    | ✅     | Parser hand-written + Pratt |
+| 3    | ✅     | Name resolution + HIR |
+| 4    | ✅     | Type checker bidirecional |
+| 5a   | ✅     | MIR (CFG) |
+| 5b   | ⏳     | Ownership analysis (gen refs, linear types) |
+| 6    | ✅     | Codegen LLVM + linker |
+| 7    | ⏳     | Formatter + scaffold de projeto |
+| 8    | ⏳     | Stdlib formal |
 | 9    | ⏳     | LSP MVP |
 | 10   | ⏳     | Integration tests + benchmarks |
+
+## Demo
+
+```bash
+$ ./target/debug/vex run examples/hello.vex
+Hello, Vex!
+
+$ ./target/debug/vex run examples/fib.vex
+55
+
+$ ./target/debug/vex run examples/ponto.vex
+5.0
+```
 
 ---
 

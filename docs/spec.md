@@ -17,15 +17,18 @@ Três princípios não-negociáveis:
    references* (estilo Vale) + *linear types* opcionais para recursos
    (estilo Austral). Sem GC.
 
-## Estado atual (Fase 5a concluída)
+## Estado atual (Fase 6 concluída — MVP end-to-end)
 
 - ✅ **Lexer** completo.
 - ✅ **Parser** completo (recursive descent + Pratt).
-- ✅ **Name resolution + HIR**: duas passagens, forward refs, shadowing.
-- ✅ **Type checker**: bidirecional simples, 15 variantes de erro com hint.
-- ✅ **MIR (CFG)**: lowering HIR → MIR com basic blocks, terminators,
-  places, rvalues. CLI `vex check --emit=mir` imprime o CFG textualmente.
-- ⏳ Próximo: ownership analysis sobre MIR (5b) + codegen LLVM (6).
+- ✅ **Name resolution + HIR**.
+- ✅ **Type checker** bidirecional.
+- ✅ **MIR (CFG)** com basic blocks e terminators.
+- ✅ **Codegen LLVM** via inkwell 0.9 + LLVM 17: gera `.o` + linka com
+  runtime estático. `vex run` compila e executa.
+- ✅ **3 exemplos rodam:** `hello`, `fib`, `ponto`.
+- ⏳ Próximo: ownership analysis (5b), arrays primeira-classe,
+  match decision-tree, stdlib formal (Fase 7+).
 
 ## Sintaxe (informal, atualizada conforme parser evolui)
 
@@ -162,3 +165,4 @@ com a Fase 2.
 - `0003-name-resolution.md` — HIR e algoritmo de duas passagens
 - `0004-typeck.md` — type checker bidirecional + built-ins poly
 - `0005-mir-cfg.md` — MIR como CFG; split em 5a (CFG) e 5b (ownership)
+- `0006-codegen-llvm.md` — codegen via inkwell + linker subprocess

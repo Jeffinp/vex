@@ -16,6 +16,10 @@ use vex_hir::{
 };
 use vex_typeck::Ty;
 
+/// Tabela auxiliar para o lowerer consultar tipos de campos sem
+/// reimplementar typeck.
+type StructFieldsTable = IndexMap<DefId, IndexMap<SmolStr, Ty>>;
+
 use crate::mir::*;
 
 #[derive(Debug, thiserror::Error)]
@@ -31,7 +35,7 @@ pub fn lower_module(
     hir: &HirModule,
     type_of_def: &dyn Fn(DefId) -> Option<Ty>,
 ) -> Result<MirModule, LowerError> {
-    let structs = hir.items.iter().filter_map(|i| match i {
+    let structs: Vec<MirStruct> = hir.items.iter().filter_map(|i| match i {
         HirItem::Struct(s) => Some(MirStruct {
             id: s.id,
             name: s.name.clone(),
@@ -42,21 +46,47 @@ pub fn lower_module(
         _ => None,
     }).collect();
 
+    let mut struct_fields: StructFieldsTable = IndexMap::new();
+    for s in &structs {
+        let map: IndexMap<SmolStr, Ty> = s.fields.iter().cloned().collect();
+        struct_fields.insert(s.id, map);
+    }
+
+    // Tabela `(struct_id, name) → ret_ty` para inferir tipo de retorno
+    // de method calls dentro do lowerer.
+    let mut method_ret: IndexMap<(DefId, SmolStr), Ty> = IndexMap::new();
+    for item in &hir.items {
+        if let HirItem::Impl(im) = item {
+            for m in &im.methods {
+                method_ret.insert(
+                    (im.target, m.name.clone()),
+                    lower_ty(&m.ret_type, Some(&Ty::Struct(im.target))),
+                );
+            }
+        }
+    }
+
     let mut fns = Vec::new();
+    let mut methods = Vec::new();
     for item in &hir.items {
         match item {
-            HirItem::Fn(f) => fns.push(lower_fn(f, None, type_of_def)?),
+            HirItem::Fn(f) => fns.push(lower_fn(f, None, type_of_def, &struct_fields, &method_ret)?),
             HirItem::Impl(im) => {
                 let self_ty = Ty::Struct(im.target);
                 for m in &im.methods {
-                    fns.push(lower_fn(m, Some(&self_ty), type_of_def)?);
+                    methods.push(MirMethod {
+                        struct_id: im.target,
+                        name: m.name.clone(),
+                        fn_id: m.id,
+                    });
+                    fns.push(lower_fn(m, Some(&self_ty), type_of_def, &struct_fields, &method_ret)?);
                 }
             }
             _ => {}
         }
     }
 
-    Ok(MirModule { fns, structs })
+    Ok(MirModule { fns, structs, methods })
 }
 
 fn lower_ty(t: &vex_hir::HirType, self_ty: Option<&Ty>) -> Ty {
@@ -67,8 +97,13 @@ fn lower_fn(
     f: &HirFn,
     self_ty: Option<&Ty>,
     type_of_def: &dyn Fn(DefId) -> Option<Ty>,
+    struct_fields: &StructFieldsTable,
+    method_ret: &IndexMap<(DefId, SmolStr), Ty>,
 ) -> Result<MirFn, LowerError> {
-    let mut lowerer = FnLowerer::new(self_ty.cloned(), type_of_def);
+    let ret_ty = lower_ty(&f.ret_type, self_ty);
+    let mut lowerer = FnLowerer::new(
+        self_ty.cloned(), ret_ty.clone(), type_of_def, struct_fields, method_ret,
+    );
 
     // Parâmetros viram primeiros locals.
     let mut params = Vec::new();
@@ -110,13 +145,22 @@ struct FnLowerer<'a> {
     def_to_local: IndexMap<DefId, LocalId>,
     next_tmp: u32,
     self_ty: Option<Ty>,
+    ret_ty: Ty,
     type_of_def: &'a dyn Fn(DefId) -> Option<Ty>,
+    struct_fields: &'a StructFieldsTable,
+    method_ret: &'a IndexMap<(DefId, SmolStr), Ty>,
     /// Pilha de (continue_target, break_target) para loops.
     loop_targets: Vec<(BlockId, BlockId)>,
 }
 
 impl<'a> FnLowerer<'a> {
-    fn new(self_ty: Option<Ty>, type_of_def: &'a dyn Fn(DefId) -> Option<Ty>) -> Self {
+    fn new(
+        self_ty: Option<Ty>,
+        ret_ty: Ty,
+        type_of_def: &'a dyn Fn(DefId) -> Option<Ty>,
+        struct_fields: &'a StructFieldsTable,
+        method_ret: &'a IndexMap<(DefId, SmolStr), Ty>,
+    ) -> Self {
         Self {
             locals: Vec::new(),
             blocks: Vec::new(),
@@ -124,7 +168,10 @@ impl<'a> FnLowerer<'a> {
             def_to_local: IndexMap::new(),
             next_tmp: 0,
             self_ty,
+            ret_ty,
             type_of_def,
+            struct_fields,
+            method_ret,
             loop_targets: Vec::new(),
         }
     }
@@ -162,10 +209,13 @@ impl<'a> FnLowerer<'a> {
     }
 
     fn finish_open_block_as_return(&mut self) {
-        // Se o terminator do bloco atual ainda é Unreachable e o bloco
-        // existe (estamos no fim natural da fn void), troca por Return.
+        // Para fn void: fluxo que caiu no fim implica `return`. Para fn
+        // com retorno, deixar como `Unreachable` é correto (typeck garante
+        // que todos os caminhos válidos têm `return` explícito).
         let idx = self.current.0 as usize;
-        if matches!(self.blocks[idx].terminator, Terminator::Unreachable) {
+        if matches!(self.blocks[idx].terminator, Terminator::Unreachable)
+            && matches!(self.ret_ty, Ty::Void)
+        {
             self.blocks[idx].terminator = Terminator::Return(None);
         }
     }
@@ -583,7 +633,61 @@ impl<'a> FnLowerer<'a> {
                 inner: Box::new(self.infer_expr_type(val)),
             },
             HirExpr::Block(_) | HirExpr::Assign { .. } => Ty::Void,
-            _ => Ty::Error,
+            HirExpr::Call { callee, args, .. } => {
+                if let HirExpr::Name { id, .. } = callee.as_ref() {
+                    if !self.def_to_local.contains_key(id) {
+                        if let Some(ty) = (self.type_of_def)(*id) {
+                            return ty;
+                        }
+                    }
+                }
+                if let HirExpr::Builtin { name, .. } = callee.as_ref() {
+                    if let Some((_, ret)) = vex_typeck::builtin_signature(name) {
+                        // `Any` no retorno: usar tipo do primeiro arg como
+                        // heurística (cobre min/max/pop). Boa o suficiente
+                        // para o MVP — typeck já validou consistência.
+                        if matches!(ret, Ty::Any) {
+                            if let Some(a) = args.first() {
+                                return self.infer_expr_type(a);
+                            }
+                        }
+                        return ret;
+                    }
+                }
+                Ty::Error
+            }
+            HirExpr::FieldAccess { obj, field, .. } => {
+                let obj_ty = self.infer_expr_type(obj);
+                let struct_id = match &obj_ty {
+                    Ty::Struct(id) => Some(*id),
+                    Ty::Ref { inner, .. } => match &**inner {
+                        Ty::Struct(id) => Some(*id),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                let Some(sid) = struct_id else { return Ty::Error };
+                self.struct_fields.get(&sid)
+                    .and_then(|fs| fs.get(field))
+                    .cloned()
+                    .unwrap_or(Ty::Error)
+            }
+            HirExpr::MethodCall { receiver, name, .. } => {
+                let recv_ty = self.infer_expr_type(receiver);
+                let sid = match &recv_ty {
+                    Ty::Struct(id) => *id,
+                    Ty::Ref { inner, .. } => match &**inner {
+                        Ty::Struct(id) => *id,
+                        _ => return Ty::Error,
+                    },
+                    _ => return Ty::Error,
+                };
+                self.method_ret.get(&(sid, name.clone()))
+                    .cloned()
+                    .unwrap_or(Ty::Error)
+            }
+            HirExpr::Index { .. } | HirExpr::Match { .. }
+            | HirExpr::Builtin { .. } => Ty::Error,
         }
     }
 }

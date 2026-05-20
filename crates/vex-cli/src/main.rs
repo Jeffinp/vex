@@ -54,14 +54,28 @@ fn main() -> ExitCode {
     let result = match cli.command {
         Commands::Run { file, opt_level } => {
             let output = file.with_extension("");
-            compile(CompileRequest {
+            let res = compile(CompileRequest {
                 source_path: file,
-                output_path: output,
+                output_path: output.clone(),
                 target: None,
                 opt_level,
                 check_only: false,
                 emit: None,
-            })
+            });
+            if res.is_ok() {
+                // Executa o binário recém-gerado.
+                let status = std::process::Command::new(&output).status();
+                let _ = std::fs::remove_file(&output);
+                match status {
+                    Ok(s) if s.success() => return ExitCode::SUCCESS,
+                    Ok(s)  => return ExitCode::from(s.code().unwrap_or(1) as u8),
+                    Err(e) => {
+                        eprintln!("erro ao executar binário: {e}");
+                        return ExitCode::FAILURE;
+                    }
+                }
+            }
+            res
         }
         Commands::Build { file, output, target, opt_level } => {
             let output = output.unwrap_or_else(|| file.with_extension(""));

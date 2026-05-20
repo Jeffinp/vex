@@ -7,7 +7,12 @@ license-file.workspace = true
 description = "LLVM IR code generation for Vex via inkwell"
 
 [dependencies]
+vex-ast.workspace = true
+vex-hir.workspace = true
 vex-mir.workspace = true
+vex-typeck.workspace = true
 vex-diagnostics.workspace = true
 inkwell.workspace = true
+indexmap.workspace = true
+smol_str.workspace = true
 thiserror.workspace = true

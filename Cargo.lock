@@ -809,10 +809,15 @@ dependencies = [
 name = "vex-codegen"
 version = "0.1.0"
 dependencies = [
+ "indexmap",
  "inkwell",
+ "smol_str",
  "thiserror 1.0.69",
+ "vex-ast",
  "vex-diagnostics",
+ "vex-hir",
  "vex-mir",
+ "vex-typeck",
 ]
 
 [[package]]

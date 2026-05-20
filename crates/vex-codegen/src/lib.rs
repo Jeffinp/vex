@@ -1,27 +1,22 @@
 //! Code generation Vex → LLVM IR via `inkwell`.
 //!
-//! Fase 4. Pipeline:
-//! `vex-mir` → este crate → arquivo `.o` → linker (lld) → binário.
+//! Fase 6. Pipeline:
+//! `vex-mir::MirModule` → este crate → arquivo `.o` → linker (clang/lld)
+//! → binário.
 //!
-//! Para Windows: usa `--target x86_64-pc-windows-gnu` + `llvm-mingw` para
-//! cross-compilar do WSL2 Linux para `.exe`.
+//! Estratégia:
+//! - cada `MirFn` vira `FunctionValue` LLVM
+//! - cada `MirLocal` vira `alloca` no bloco entry
+//! - cada `BasicBlock` vira `BasicBlockValue`
+//! - statements/rvalues lowered diretamente para instruções LLVM
+//! - built-ins (print, println) mapeiam para externs do runtime
+//!   (`vex_print_*`/`vex_println_*` em `runtime/`)
+//!
+//! Cross-compile Windows: passar `target_triple = Some("x86_64-pc-windows-gnu")`
+//! em `CodegenOptions`; linkagem com `llvm-mingw` é tarefa do driver.
 
-#[derive(Debug, thiserror::Error)]
-pub enum CodegenError {
-    #[error("erro LLVM: {0}")]
-    Llvm(String),
-    #[error("target inválido: {0}")]
-    InvalidTarget(String),
-}
+mod compile;
+mod link;
 
-pub struct CodegenOptions {
-    pub target_triple: Option<String>, // ex: "x86_64-pc-windows-gnu"
-    pub opt_level: u8,                  // 0..=3
-    pub emit_ir: bool,
-}
-
-impl Default for CodegenOptions {
-    fn default() -> Self {
-        Self { target_triple: None, opt_level: 2, emit_ir: false }
-    }
-}
+pub use compile::{compile_module, CodegenError, CodegenOptions};
+pub use link::{link_object, LinkError, LinkOptions};

@@ -13,5 +13,5 @@ mod ty;
 mod env;
 mod check;
 
-pub use ty::{lower_hir_type, Ty};
+pub use ty::{lower_hir_type, builtin_signature, Ty};
 pub use check::{check_module, TypeError};

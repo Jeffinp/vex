@@ -255,15 +255,36 @@ Decisão arquitetural em `docs/design/0005-mir-cfg.md`.
 
 ## Fase 6 — Codegen LLVM (Dia 21-26)
 
-- [ ] Setup `inkwell` 0.9 + LLVM 17
-- [ ] Mapeamento de tipos Vex → LLVM IR
-- [ ] Codegen de fn, call, return
-- [ ] Codegen de control flow (if, while, for)
-- [ ] Codegen de structs + acesso a campos
-- [ ] Linkar runtime (`vex-runtime` staticlib)
-- [ ] **Cross-compile** Linux→Windows via `--target x86_64-pc-windows-gnu`
+**Status:** ✅ Concluída (MVP). Detalhes em `docs/design/0006-codegen-llvm.md`.
 
-**Entregável:** `vex build hello.vex --target windows` gera `hello.exe`.
+- [x] `inkwell` 0.9 + LLVM 17 conectados
+- [x] Mapeamento de tipos Vex → LLVM IR (i64, double, i1, i32, ptr,
+      named struct types)
+- [x] Codegen de fn (declaração + entry block + alloca de locals)
+- [x] Codegen de basic blocks + terminators (Goto, If, Return, Unreachable)
+- [x] Codegen de Statement (Assign, Store via Place projections)
+- [x] Codegen de Rvalue (Use, BinaryOp int/float, UnaryOp, Call,
+      Field via GEP, Ref, StructInit)
+- [x] Method dispatch via tabela `(struct_id, name) → fn_id`
+- [x] Built-ins (`print`/`println`/`sqrt`/`abs`) dispatch por tipo
+      do primeiro argumento
+- [x] Float `println` mostra `.0` para valores inteiros (`{x:?}`)
+- [x] Linker auto-detecta `clang`/`clang-17`/`gcc` (Linux) ou
+      `x86_64-w64-mingw32-gcc` (Windows)
+- [x] Runtime `vex-runtime` com C ABI (`vex_print_*`, `vex_sqrt`, …)
+- [x] Driver: pipeline lex → parse → resolve → typeck → mir → codegen
+      → link; `vex run` executa + limpa binário
+- [x] Verify LLVM IR ativo — pega bugs cedo
+- [x] **3 exemplos compilam e rodam:**
+      - `hello.vex` → `Hello, Vex!`
+      - `fib.vex` → `55`
+      - `ponto.vex` → `5.0`
+
+Pendentes do MVP (pós-Fase-6):
+- [ ] Arrays primeira-classe (layout `{ ptr, len }`)
+- [ ] Match decision-tree lowering
+- [ ] Cross-Windows testado E2E em CI
+- [ ] Auto-deref em method receivers
 
 ---
 
